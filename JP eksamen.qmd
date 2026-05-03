@@ -1,0 +1,352 @@
+---
+title: "JP eksamen"
+lang: da
+format:
+  pdf:
+    documentclass: article
+    toc: false
+    toc-title: Indholdsfortegnelse
+    toc-depth: 4
+    number-sections: true
+    number-depth: 4
+    titlepage: true
+    lof: false
+    lot: false
+# bibliography: VFF_projekt.bib
+header-includes:
+  - \usepackage[a4paper, top=30mm, bottom=30mm, left=20mm, right=20mm, heightrounded]{geometry}
+  - \usepackage{booktabs}
+  - \usepackage{makecell}
+  - \usepackage{pdfpages}
+  # - \AtBeginDocument{\includepdf[pages={1}]{vff_forside.pdf}}
+crossref:
+  fig-prefix: ""
+  sec-prefix: ""
+  tbl-prefix: ""
+  eq-prefix: ""
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a
+finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that
+includes both content and the output of embedded code. You can embed
+code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is
+displayed).
+
+
+```{r}
+#| label: Setup
+#| echo: false
+#| eval: true
+
+# Options
+options(OutDec = ",")
+
+# Pakker
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(knitr, tinytex, tidyverse, tidymodels, lubridate, dplyr, stringr, readr, readxl, 
+               themis, table1, ggpubr, broom, ggfortify, GGally,
+               PerformanceAnalytics, car, caret, skimr, discrim, glmnet,
+               kknn, naivebayes, kernlab, xgboost, gridExtra, rpart, future,
+               ranger, rmarkdown, gt)
+```
+
+
+\pagenumbering{gobble} 
+\tableofcontents 
+\newpage 
+\listoffigures 
+\newpage 
+\pagenumbering{arabic} 
+\setcounter{page}{1}
+
+# Indledning
+
+# Problemstilling
+
+# Afgræsning
+
+# Forretningsforståelse
+
+# Dataforståelse
+
+# Data preparation
+
+# Feature engineering
+
+# Machine learning metode
+
+# Exploratory data analysis
+
+```{r}
+#| echo: true
+#| eval: true
+#| results: hide
+#| message: false
+#| warning: false
+
+# Indlæsning af datasæt
+subscription <- read_delim("subscription_v2.csv", delim = ";")
+behavior <- read.csv("behavior.csv")
+cancellation <- read.csv("cancellation.csv")
+```
+
+
+Vigtigt, det nye til den mundtlige eksmaen: Til den mundtlige eksamen, lav threshold til modellerne for at få flere med der churn.
+
+2. semester eksamen - Jyllands Posten
+
+Forside
+Jyllands-Posten – Churn Analyse
+Semesterprojekt 2. Semester– Dataanalyse
+Navne + hold 7
+Dato: 6. Maj 2026
+
+1. Introduktion
+Baggrund for casen
+
+I en tid, hvor mediebranchen gennemgår en massiv digital omstilling, er fastholdelse af digitale abonnenter blevet et af de absolut mest kritiske forretningsområder for bladhuse. For Jyllands-Posten er det essentielt at opretholde en stærk og loyal abonnentbase for at sikre en kontinuerlig omsætning. Den klassiske udfordring for medievirksomheder er dog, at de ofte først bliver opmærksomme på en kundes utilfredshed i det øjeblik, kunden aktivt vælger at trykke på "Opsig abonnement". På dette tidspunkt er det oftest for sent at redde kunderelationen, og det koster markant mere at skaffe en ny kunde end at fastholde en eksisterende.
+
+Med udgangspunkt i et omfattende datasæt indeholdende kundernes faktiske adfærd, herunder læsevaner, scrolldybde og klikmønstre i de første 30 dage af deres abonnement – danner dette projekt grundlaget for at hjælpe Jyllands-Posten med at bevæge sig fra en reaktiv til en datadrevet, proaktiv fastholdelsesstrategi.
+
+
+Problemstilling
+Hovedproblemet for Jyllands-Posten er fraværet af et proaktivt og datadrevet system, der kan identificere kunder i risikozonen for at opsige deres abonnement, før opsigelsen rent faktisk finder sted. Dette leder frem til projektets centrale problemstilling, som omhandler, hvordan Jyllands-Posten kan anvende machine learning og kundernes adfærdsdata til at forudsige churn på et tidligt tidspunkt. I forlængelse heraf undersøges det, hvordan abonnenterne kan segmenteres i operationelle kundetyper, så bladhuset kan målrette deres fastholdelsesindsats bedst muligt.
+
+For at løse dette fokuserer projektet på at afdække, hvilke specifikke adfærdsmønstre der fungerer som de stærkeste indikatorer for en forestående opsigelse, herunder for eksempel antallet af tidligere prøveperioder eller en faldende læseaktivitet midt i måneden. Slutteligt belyser projektet, hvordan man bedst muligt omsætter udregningerne fra disse avancerede algoritmer til en konkret og håndgribelig forretningsværdi for Jyllands-Postens ledelse og kundeservice.
+
+
+2. Forretningsforståelse (CRISP-DM: Business Understanding)
+Udfordringen med churn hos Jyllands-Posten
+Jyllands-Postens centrale udfordring er at fastholde digitale abonnenter efter kampagneperioden. En stor del af kunderne opsiger deres abonnement, når prisen overgår til normal listepris, hvilket skaber en ustabil kundebase.
+Dette påvirker forretningen negativt, da værdien af marketingindsatser reduceres, når kunderne ikke forbliver abonnenter længe nok til at blive profitable.
+Abonnementsmodel og kampagnestruktur
+Abonnementsmodellen er baseret på introduktionstilbud med en lav pris i en begrænset periode. Efterfølgende overgår abonnementet automatisk til normal pris, medmindre kunden opsiger.
+Denne overgang fungerer som et kritisk tidspunkt, hvor kunden vurderer værdien af produktet. Det er derfor i denne fase, at en stor del af churn opstår, hvilket gør det særligt relevant at identificere risikokunder tidligt i forløbet.
+Forretningsmål
+På baggrund af ovenstående arbejder Jyllands-Posten med følgende forretningsmål:
+Reducere churn:
+Identificerer kunder med høj risiko for opsigelse, så der kan sættes ind med målrettede fastholdelsestiltag.
+Øge fastholdelse:
+Skabe indsigt i hvilke faktorer der driver loyalitet, så disse kan styrkes.
+Identificerer værdifulde kunder:
+Udpege kunder med høj sandsynlighed for at fortsætte abonnementet, så disse kan udvikles og fastholdes på længere sigt, samtidig med at der sættes ind over for kunder med høj churn-risiko.
+Kobling til machine learning
+Machine learning anvendes til at omsætte data om kundeadfærd til konkrete forudsigelser. Ved at identificere mønstre i data bliver det muligt at udpege kunder med høj churn-risiko samt kunder med høj livstidsværdi.
+Dette understøtter en mere proaktiv tilgang, hvor Jyllands-Posten kan handle før opsigelsen, finder sted og dermed arbejde mere effektivt med fastholdelse.
+ 
+3. Dataforståelse (CRISP-DM: Data Understanding)
+I analysen anvendes tre centrale datasæt: subscription, behavior og cancellation. Subscription fungerer som udgangspunkt og indeholder den overordnede information om kunder og deres abonnement. Cancellation bidrager med oplysninger om opsigelser og bruges til at identificere churn, mens behavior indeholder detaljeret data om kundernes aktivitet på platformen. Tilsammen giver datasættene et samlet billede af kunden, kundens adfærd og kundens eventuelle opsigelse.
+Overblik over opsætning og sammenkobling
+Arbejdsprocessen med data følger en logisk rækkefølge:
+Subscription anvendes som udgangspunkt
+Cancellation renses ved at fjerne dubletter
+Datasættene sammenkobles via pseudo_id
+Data renses, og nye variable konstrueres
+Behavior-data aggregeres til kundedata
+Behavior kobles derefter sammen med de øvrige datasæt via pseudo_id
+Resultatet er ét samlet datasæt (final_df), som indeholder både kundeinformation, adfærd og churn.
+4. Data Preparation (CRISP-DM: Data Preparation)
+Vi starter med at klargøre data til den videre analyse ved at samle, rense og strukturere datasættene, så de kan anvendes samlet.
+Vi tager udgangspunkt i subscription-datasættet, som fungerer som udgangspunkt. Herefter arbejder vi med cancellation-datasættet, hvor vi identificerer og fjerner dubletter, så hver kunde kun optræder én gang. Det er nødvendigt for at undgå mange-til-mange relationer, når datasættene kobles sammen.
+Derefter kobler vi subscription og cancellation sammen via pseudo_id, så vi får samlet information om både kunden og opsigelse i ét datasæt. I denne proces håndterer vi manglende værdier, hvor manglende expiration_date tolkes som aktive abonnementer og derfor ikke betragtes som en fejl, men som en del af datastrukturen.
+Efter sammenkoblingen renses data yderligere, sikrer vi, at datoformater er ens, så de kan anvendes korrekt i analysen.
+Behavior-datasættet behandles separat, da det ligger på et detaljeret niveau med mange observationer pr. kunde. For at gøre det anvendeligt aggregerer vi data til ét niveau pr. kunde, hvor vi opgør aktivitet, engagement og overordnede brugsmønstre. Dette gør det muligt at sammenligne kunder på et ensartet grundlag.
+Den aggregerede adfærdsdata kobles derefter på det samlede datasæt via pseudo_id. I den forbindelse fjerner vi observationer, hvor der mangler nødvendige værdier for den videre analyse, så datasættet fremstår konsistent.
+Adfærdsdataen omfatter kun de første 30 dage efter kampagnestart, da dette er den periode, der er stillet til rådighed. Analysen er derfor afgrænset til at tage udgangspunkt i den tidlige brugeradfærd.
+Resultatet er et samlet datasæt, hvor data er renset, struktureret og klar til den videre analyse.
+
+5. Feature Engineering (Dataanalyse / Machine Learning)
+I denne opgave er der fokus på de variabler, som har direkte relevans for modellering og analyse af adfærd af abonnenter. For at identificere vigtige variabler anvendes regressionsmodel baseret på glmnet (logistic regression). Formålet med denne metode er at reducere kompleksiteten af modellen og sætte de irrelevante variable koefficienter til 0, hvilket øger modellens robusthed med bedre generalisering til nye data. Modellen vil dermed give indsigt i de faktorer der potentielt påvirker får burgere til churn.
+Derudover er der foretaget en manuel udvælgelse af nogle variabler for yderligere at rense datasæt og sikre at de relevante variabler indgår i vores modellering, da støj og overfitting påvirker vores analyse.
+Alder er inkluderet som kan medvirke til visualisering del af opgaven da demografisk variation har altid et eller andet betydning og churn adfærd kan varierer fra i de forskellige aldersgrupper.
+Churn-variabel oprettet som en ny variable, da det er en vigtig del for at skelne mellem de kunder som fortsætter eller opsiger sit abonnement. Variablen er defineret som binær variable 0/1 og det måler om kunderne deres abonnement inden for et eller andet periode.
+ Artikeltyper og scroll depth er inkluderet pga. behavior data for at undersøge om de forskellige typer indhold har virkning og betydning for kundernes adfærd som dermed påvirker deres sandsynlighed for churn. Det kan også give indsigt i hvilke typer indhold skaber værdi og fastholder abonnenter.  
+Alle de ovennævnte variabler er inkluderet i modellering af opgaven for at give et mere nuanceret billede af brugerens engagement, som har betydning for modeltræning, evaluering og analyse del af vores opgave. 
+6. Machine Learning Metode (CRISP-DM: Modeling)
+Under modelleringsfasen anvendes en struktureret tilgang baseret på  CRISP-DM modeling.
+Her er dataen opdelt i træning og testsæt for at kunne evaluere modellens performance på renset data, hvor datasæt er opdelt i 80/20 split med anbefalet stratificering for at sikre ensartet fordeling i vores opdeling. Derudover har vi anvendt k-fold cross-validation på vores træningsdata for at opnå et bedre resultat af modellernes performance.    
+For at normalisere vores variabler og kategoriske variabler omdannes til dummy variabler, har vi anvendt ensartet preprocessing pipeline via tidymodels. 
+En række variabler som ikke bidrager til vores model og kan skabe datalækage  er taget fra vores modellerings del. Disse variabler er  følgende:
+  pseudo_id,
+subscription_cancel_date,
+    order_date,
+    birthdate,
+    usr_created,
+    first_campaign_day,
+    last_campaign_day,
+    expiration_date,
+    type,
+    reason,
+    permission_given_today,
+    aktivitet_total_30,
+    days_after_campaign
+Vi har derefter har vi kigger på vores det alle vigtigste variable (churn) som er omdannet til en faktor med værdierne Yes og NO som skal anvendes i vores klassifikationsmodeller. Variabler som køn og er ligeledes omdannet til faktorer. 
+. (Aziz fortsætter )
+7. Exploratory Data Analysis (Dataanalyse / Statistik)
+Fordeling af churn
+Sammenhænge mellem variable
+Adfærdsmønstre
+Identifikation af vigtige features
+
+
+8. Valg af modeller (Machine Learning & AI)
+(Decision Tree, Logistic Regression, Naive Bayes, KNN, Random Forest, SVM, XGBoost)
+
+For at identificere den bedst egnede model til at forudsige churn er der opstillet og testet flere forskellige klassifikationsmodeller. Modellerne er valgt for at skabe et bredt sammenligningsgrundlag, hvor både simple, fortolkelige modeller og mere avancerede modeller indgår. Dette gør det muligt at vurdere, hvilke metoder der bedst kan opfange mønstre i Jyllands-Postens abonnements- og adfærdsdata.
+
+De valgte modeller dækker både simple og mere avancerede metoder. Logistisk regression er medtaget som en simpel model, der kan fungere som et godt udgangspunkt for analysen. Decision Tree er også inkluderet, fordi modellen opdeler kunderne ud fra beslutningsregler, som er forholdsvis lette at forklare. Naive Bayes er medtaget som en hurtig benchmark-model, mens KNN bruges som en afstandsbaseret model, hvor kunder klassificeres ud fra, hvilke andre kunder de minder mest om.
+
+Derudover indgår Random Forest, SVM og XGBoost. Random Forest og XGBoost er særligt relevante i denne analyse, fordi de kan håndtere mere komplekse sammenhænge mellem variablerne. I en churn-analyse er det sjældent én enkelt variabel, der afgør, om en kunde churner. SVM er medtaget, fordi modellen kan være god til at adskille grupper, når mønstrene i data ikke er helt lineære.
+
+Modellerne er bygget op i tidymodels, hvor både klargøring af data og selve modellen samles i et workflow. Det giver en ensartet proces, hvor modellerne bliver trænet og evalueret på samme grundlag. I klargøringen bliver numeriske variable normaliseret, kategoriske variable omdannet til dummy-variable, og variable uden variation fjernet. Det sikrer, at data behandles ens på tværs af modellerne, og at modellerne får et mere stabilt grundlag at lære ud fra.
+
+Alle modeller er sat op med hyperparameter-tuning, hvor forskellige parameterindstillinger testes gennem cross-validation. Det giver en mere fair sammenligning, fordi modellerne evalueres på samme grundlag og ikke kun ud fra én enkelt opdeling af data. Den endelige model vælges derfor på baggrund af modellernes samlede performance.
+
+Da formålet er at identificere churn-kunder, vurderes modellerne ikke kun ud fra accuracy. En model kan nemlig godt få en høj accuracy ved primært at forudsige den største klasse. Derfor lægges der også vægt på F1-score, sensitivitet og ROC AUC, da disse metrikker bedre viser, hvor god modellen er til at finde de kunder, der faktisk churner. Dette er særligt relevant i model 2, hvor andelen af kunder, der churner inden for den første måned efter forlængelse, er lavere end andelen, der fortsætter.
+
+
+
+
+9. Modeltræning og tuning
+(Hyperparameter tuning, Grid search, Parallel computing, Model workflow)
+I model 2 arbejder vi med upsampling, fordi der er færre kunder, der churner inden for den første måned, end kunder der ikke gør. Upsampling bruges til at gøre churn-klassen mere synlig for modellen ved at øge antallet af churn-observationer i træningsdata. Formålet er ikke at ændre på den reelle fordeling i testdata, men at give modellen bedre mulighed for at lære mønstre blandt de kunder, der faktisk churner.
+
+Til sidst bliver modellerne tunet med grid search, hvor forskellige kombinationer af hyperparametre afprøves. Det gør vi for at finde de indstillinger, der giver den bedste performance. Resultaterne fra modellerne sammenlignes efterfølgende på relevante metrikker som accuracy, ROC AUC, F1-score, sensitivitet og specificitet. I en churn-analyse er det især vigtigt ikke kun at kigge på accuracy, fordi en model kan få en høj accuracy ved primært at forudsige den største klasse. Derfor lægger vi også vægt på, hvor god modellen er til faktisk at identificere de kunder, der churner.
+
+Alle modeller tunes ved hjælp af grid search, hvor forskellige kombinationer af hyperparametre testes. Tuning gennemføres sammen med cross-validation, så modellerne evalueres på flere forskellige opdelinger af træningsdata. Det gør vi for at finde de indstillinger, der giver den bedste performance. For at kunne analysere resultaterne efterfølgende gemmes både forudsigelser og workflows under tuning.
+
+
+10. Model evaluering (CRISP-DM: Evaluation)
+Metrics:
+Accuracy
+ROC AUC
+F1-score
+Sensitivity / Specificity
+Sammenligning af modeller
+Valg af bedste model
+
+Resultaterne fra modellerne sammenlignes efterfølgende på relevante metrikker som accuracy, ROC AUC, F1-score, sensitivitet og specificitet. I en churn-analyse er det især vigtigt ikke kun at kigge på accuracy, fordi en model kan få en høj accuracy ved primært at forudsige den største klasse. Derfor lægger vi også vægt på, hvor god modellen er til faktisk at identificere de kunder, der churner.
+
+11. Resultater
+(Performance på testdata - Confusion matrix - Fortolkning af modeloutput)
+Model 1
+I model 1 undersøges det, om kunder churner ved kampagneudløb eller fortsætter på et tilsvarende betalende abonnement efter kampagnen. Målvariablen er churn_ved_kampagne_udløb, hvor ‘yes’ betyder at kunden churner, mens ‘no’ angiver, at kunden fortsætter. Inden modellerne bliver kørt, fjernes de variabler, der kunne skabe data leakage, fjernet. Det gælder blandt andet datoer, expiration_date, days_after_campaign, type, reason og pseudo_id.
+Der blev testet flere klassifikationsmodeller, herunder logistisk regression, decision tree, Naive Bayes, KNN, Random Forest, SVM og XGBoost. Modellerne blev trænet og evalueret med cross-validation, hvor XGBoost opnåede den bedste F1-score på 0,732 samt en ROC AUC på 0,867. Random Forest lå dog tæt på med en F1-score på 0,722 og ROC AUC på 0,865.
+
+På baggrund af resultaterne fra cross-validation blev XGBoost valgt som den endelige model til model 1. Modellen opnåede den bedste samlede performance på de metrikker, der er særligt relevante i en churn-analyse, herunder F1-score og ROC AUC. Derudover giver XGBoost mulighed for at arbejde videre med feature importance, hvilket kan give en bedre forståelse af, hvilke variabler der har størst betydning for modellens forudsigelser.
+Den endelige XGBoost-model blev efterfølgende testet på testdata. Her opnåede modellen en accuracy på 0,728, en F1-score på 0,640, en sensitivitet på 0,576, en specificitet på 0,838 og en ROC AUC på 0,822. Resultaterne viser, at modellen generelt har en god evne til at skelne mellem churn og ikke-churn. Samtidig viser forskellen mellem sensitivitet og specificitet, at modellen er bedre til at identificere kunder, der fortsætter, end kunder der churner. Modellen genkender 83,8 % af de kunder, der ikke churner, mens den identificerer 57,6 % af de kunder, der faktisk churner.
+
+Confusion matrix viser, at modellen har 57 true positives, hvilket betyder, at 57 churn-kunder korrekt bliver klassificeret som churn. Derudover har modellen 114 true negatives, hvor kunder korrekt bliver klassificeret som ikke-churn. Modellen har samtidig 42 false negatives, hvor faktiske churn-kunder fejlagtigt bliver klassificeret som ikke-churn, samt 22 false positives, hvor kunder, der ikke churner, fejlagtigt bliver klassificeret som churn. Det betyder, at modellen finder lidt over halvdelen af de faktiske churn-kunder, men er mere sikker, når den vurderer kunder som ikke-churn.
+Samlet set vurderes XGBoost som den bedste model for model 1, fordi den performer bedst i cross-validation og samtidig giver mulighed for at analysere feature importance.
+
+Model 2
+I model 2 undersøges det, om kunder churner inden for 1 måned efter de blev overført til et tilsvarende betalende abonnement. Modellen tager derfor kun udgangspunkt i kunder, der fortsætter til et betalende abonnent efter kampagnens udløb. Her er modellernes y-variabel churn_1måned_efter_forlængelse, hvor ‘yes’ angiver early chrun i perioden, mens ‘no’ angiver at kunden fortsætter længere end 1 måned.
+Datasættet består af 678 observationer, hvoraf 126 churner og 552 som ikke churner inden for den første måned, svarende til en fordeling på cirka 20/80. Da datasættet har en skæv fordeling i churn og ikke-churn, bliver der både trænet en baseline model og en model med upsampling. Formålet med upsampling er at gøre den sjældne klasse, dvs churn mere synlig for modellen, ved at øge antallet af observationer i den sjældne klasse i træningsdata. På den måde får modellen bedre mulighed for at lære mønstre blandt de kunder, der reelt churner.
+
+
+
+12. Kundeprofiler (Meget vigtig til jeres case )
+Profil af churn-kunder
+Profil af loyale kunder
+Profil af “kortvarige” kunder
+Adfærdsmønstre pr. segment
+
+13. Forretningsimplikationer
+Hvordan kan Jyllands-Posten bruge modellen?
+Hvem skal målrettes?
+Mulige tiltag:
+Personlige tilbud
+Retention-strategier
+Kampagneoptimering
+
+14. Visualisering (Datavisualisering / Power BI)
+Visualisering af churn
+Feature importance
+Kundesegmenter
+Beskrivelse af Shiny-applikation
+
+15. Dataetik og Datajura
+Identifikation af juridiske og etiske problemstillinger
+Relevante regler:
+Databeskyttelsesforordningen (GDPR) artikel 5, artikel 6 og artikel 22
+Markedsføringsloven § 10
+I analysen anvender vi data fra Jyllands-Postens abonnenter til at opbygge prædiktive modeller, der kan forudsige churn. Dette indebærer både juridiske og etiske problemstillinger:
+For det første behandler vi personoplysninger, herunder demografiske data, detaljeret adfærdsdata såsom læseaktivitet, scroll depth og artikelpræferencer. Selvom data er pseudonymiseret via pseudo_id, er der fortsat tale om personoplysninger, da de kan henføres til en identificerbar person af den dataansvarlige Jyllands-Posten.
+For det andet foretager vi profilering gennem anvendelsen af machine learning-modeller, hvor vi prøver at forudsige brugernes fremtidige adfærd på baggrund af historiske data, jf. GDPR artikel 22.
+Der opstår her potentielle problemstillinger i forhold til:
+Anvendelse af data til andre formål end oprindeligt indsamlet (formålsbegrænsning, artikel 5)
+Brug af modellen til markedsføring og kundepåvirkning (markedsføringsloven § 10)
+Brug af modeller, hvor det kan være svært at forklare beslutninger, da de ikke er tydelige i modellen (transparens, artikel 5)
+Derudover opstår der en særlig problemstilling i, at vi som analysegruppe behandler data på vegne af Jyllands-Posten. Dette rejser spørgsmål om datasikkerhed og ansvar, jf. GDPR’s krav til sikker behandling af personoplysninger.
+Etisk set kan dataanalysen være udfordrende, fordi brugernes adfærd analyseres detaljeret og kan føles som overvågning. Samtidig kan modellen føre til uretfærdig opdeling af forskellige brugergrupper og bruges til at påvirke brugernes valg gennem målrettet markedsføring, som nævnt tidligere.
+2. Drøftelse af problemstillinger
+Behandlingen af data er omfattet af GDPR og kræver et gyldigt behandlingsgrundlag, jf. artikel 6. Vi vurderer at behandlingen kan baseres på legitim interesse, da formålet er at analysere churn og skabe forretningsværdi. Dette kræver dog en interesseafvejning, der betyder at Jyllands-Postens interesse skal veje tungere end brugerens ret til privatliv, og behandlingen ikke er unødigt indgribende for den enkelte bruger.
+Brugen af detaljeret adfærdsdata er ikke ulovlig i sig selv, men kan være problematisk i forhold til dataminimering, jf. artikel 5, hvis vi anvender flere data end nødvendigt.
+Profilering (data brugt til at forudsige en persons adfærd) er tilladt, men bliver først et reelt problem, hvis beslutninger træffes fuldt automatisk uden menneskelig kontrol, jf. artikel 22. I vores analyse anvendes modellen som beslutningsstøtte, hvilket reducerer denne risiko.
+Bias er ikke direkte reguleret i GDPR, men hænger sammen med princippet om fairness og korrekt behandling af data. Hvis modellen systematisk stiller bestemte grupper dårligere, kan det være problematisk.
+I forhold til markedsføring er det ikke et problem at identificere relevante kunder, men det bliver et problem, hvis de kontaktes uden samtykke, jf. markedsføringsloven § 10.
+Derudover er der en vigtig problemstilling i datahåndteringen. Når vi arbejder med data på vegne af Jyllands-Posten, er det afgørende, at data behandles sikkert, og at der ikke sker unødvendig deling, jf. GDPR artikel 5 og krav om datasikkerhed.
+3. Forslag til håndtering
+For at håndtere de identificerede problemstillinger vurderer vi, at følgende tiltag bør implementeres:
+Sikre dataminimering, jf. GDPR artikel 5
+Sikre tydelig information til brugerne om databehandling, fx ved cookies eller accept på mail eller andet.
+Teste modellen for bias og skævheder
+Anvende modellen som beslutningsstøtte og ikke automatiseret beslutning (artikel 22)
+I forhold til markedsføring:
+Sikre samtykke før kontakt, jf. markedsføringsloven § 10
+I forhold til datahåndtering:
+Sikre korrekt og sikker behandling af data
+Begrænse deling af data
+Sikre ansvarlig anvendelse af resultater
+4. Kobling til vores brug af data og modeller
+I analysen anvender vi data fra Jyllands-Postens abonnenter til at identificere churn gennem machine learning-modeller. Resultaterne viser, at især adfærdsvariabler som account_active_days, aktivitet_total_30 og avg_scroll_depth, der har stor betydning for modellens performance.
+Dette viser, at de mest værdifulde variabler også er de mest følsomme, hvilket stiller krav til dataminimering og transparens, jf. artikel 5.
+Vores model giver et stærkt beslutningsgrundlag i forhold til Jyllands-Postens markedsføring til kunder der churner, men det er afgørende, at både vi og Jyllands-Posten anvender resultaterne inden for de juridiske rammer, herunder GDPR og markedsføringsloven.
+16. Diskussion
+Styrker ved modellen
+Svagheder
+Databegrænsninger
+Overfitting / bias
+
+17. Konklusion
+Besvarelse af problemformulering
+Kan modellen bruges i praksis?
+
+Med til den mundtlige:Perspektivering (CRISP-DM: Deployment)
+Implementering i praksis
+Mulige forbedringer
+Fremtidige analyser
+
+Bilag
+Ekstra analyser
+Output
+
+
+
+
+
+
+
+
