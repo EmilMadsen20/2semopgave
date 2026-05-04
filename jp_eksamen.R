@@ -12,11 +12,11 @@ behavior <- read.csv("behavior.csv")
 cancellation <- read.csv("cancellation.csv")
 
 # Kontrol
-# View(subscription)
-# View(behavior)
-# View(cancellation)
+# view(subscription)
+# view(behavior)
+# view(cancellation)
 
-#Fix dato formater
+# Fix dato formater
 subscription <- subscription %>%
   mutate(
     subscription_cancel_date = as.Date(subscription_cancel_date, format = "%d-%m-%Y"),
@@ -205,13 +205,13 @@ behavior_agg <- behavior_agg %>%
   left_join(article_type_agg, by = "pseudo_id")
 
 # view(behavior_agg)
-# View(join_datasæt)
+# view(join_datasæt)
 
-#Tjek NA
+# Tjek NA
 colSums(is.na(join_datasæt))
 colSums(is.na(behavior_agg))
 
-#Join behavior_agg og join_datasæt
+# Join behavior_agg og join_datasæt
 final_df <- join_datasæt %>%
   left_join(behavior_agg, by = "pseudo_id")
 
@@ -272,7 +272,12 @@ data_model2 <- data_model1 %>%
 # view(data_model1)
 # view(data_model2)
 
+# write.csv(data_model1, "data_model1.csv", row.names = FALSE)
+# write.csv(data_model2, "data_model2.csv", row.names = FALSE)
 
+
+
+# Churn ved kampagneudløb -------------------------------------------------
 # Tidymodels workflow -----------------------------------------------------
 model1_df <- data_model1 |> 
   select(
@@ -310,7 +315,7 @@ churn_split <- initial_split(model1_df, prop = 0.8, strata = churn_ved_kampagne_
 churn_train <- training(churn_split)
 churn_test  <- testing(churn_split)
 
-churn_folds <- vfold_cv(churn_train, strata = churn_ved_kampagne_udløb)
+churn_folds <- vfold_cv(churn_train, v = 5, strata = churn_ved_kampagne_udløb)
 
 # Laver en recipe
 jp_recipe_1 <- 
@@ -401,7 +406,6 @@ plan(multisession)
 # Kør grid search på alle modeller i workflow_set
 grid_results_1 <- jp_workflow_set %>%
   workflow_map(
-    verbose = TRUE,                # TRUE viser hvad der sker undervejs, FALSE viser ingenting
     seed = 7,                      # Seed, som gør resultater reproducerbare
     resamples = churn_folds,       # cross-validation folds
     grid = 7,                      # antal parameter-kombinationer
@@ -411,10 +415,10 @@ grid_results_1 <- jp_workflow_set %>%
 
 # RDS save
 # ----------------------------
-# saveRDS(grid_results, "grid_results.rds")
-# grid_results <- readRDS("grid_results.rds")
+# saveRDS(grid_results_1, "grid_results_1.rds")
+# grid_results_1 <- readRDS("grid_results_1.rds")
 
-# Slå parallel computing fra igen
+# # Slå parallel computing fra igen
 plan(sequential)
 
 # Rangér modellerne og se hvilke der performer bedst
@@ -437,6 +441,7 @@ best_results_1
 final_wf_1 <- grid_results_1 |> 
   extract_workflow("rec_xgboost") |> 
   finalize_workflow(best_results_1)
+final_wf_1
 
 # Træn modellen på træningsdata og test den på testdata
 churn_last_fit_1 <- final_wf_1 |> 
@@ -591,11 +596,12 @@ cluster_profile <- cluster_result %>%
     .groups = "drop"
   )
 
-view(cluster_result)
+# view(cluster_result)
 
 
-# Tidymodels workflow til early churn. Model 2 ---------------------------------
-# 1. DATA + TARGET
+
+# Churn 1 måned efter forlængelse -----------------------------------------
+# Tidymodels workflow til early churn
 model2_df <- data_model2 %>%
   select(
     -pseudo_id,
@@ -628,14 +634,14 @@ model2_df <- data_model2 %>%
 table(model2_df$churn_1måned_efter_forlængelse)
 prop.table(table(model2_df$churn_1måned_efter_forlængelse))
 
-# 2. SPLIT + CV
+# SPLIT + CV
 set.seed(7)
 churn2_split <- initial_split(model2_df, prop = 0.8, strata = churn_1måned_efter_forlængelse)
 churn2_train <- training(churn2_split)
 churn2_test  <- testing(churn2_split)
 churn2_folds <- vfold_cv(churn2_train, v = 5, strata = churn_1måned_efter_forlængelse)
 
-# 3. RECIPE
+# RECIPE
 jp_recipe2 <- 
   recipe(churn_1måned_efter_forlængelse ~ ., data = churn2_train) |> 
   step_normalize(all_numeric_predictors()) |> 
@@ -643,7 +649,7 @@ jp_recipe2 <-
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |> 
   step_zv(all_predictors())
 
-# 4. UPSAMPLING RECIPE
+# UPSAMPLING RECIPE
 jp_recipe2_upsample <- 
   recipe(churn_1måned_efter_forlængelse ~ ., data = churn2_train) |> 
   step_normalize(all_numeric_predictors()) |> 
@@ -652,7 +658,7 @@ jp_recipe2_upsample <-
   step_zv(all_predictors()) |>
   step_upsample(churn_1måned_efter_forlængelse, over_ratio = 1)
 
-# 4. MODELLER
+# MODELLER
 # Decision tree
 decision_tree_rpart_spec <- 
   decision_tree(tree_depth = tune(), min_n = tune(), cost_complexity = tune()) |> 
@@ -678,10 +684,10 @@ nearest_neighbor_kknn_spec <-
   set_engine("kknn") |> 
   set_mode("classification")
 
-# Random forrest
+# Random forest
 rand_forest_ranger_spec <-
   rand_forest(mtry = tune(), min_n = tune()) |> 
-  set_engine("ranger") |> 
+  set_engine("ranger", importance = "impurity") |> 
   set_mode("classification")
 
 # SVM lineær 
@@ -702,37 +708,24 @@ boost_tree_xgboost_spec <-
   set_engine("xgboost") |> 
   set_mode("classification")
 
-# 5. WORKFLOW SET
-workflow_set2 <- 
-  workflow_set(
-    preproc = list(rec = jp_recipe2),
-    models = list(decision_tree = decision_tree_rpart_spec,
-                  logistic_reg = logistic_reg_glmnet_spec, 
-                  naive_bayes = naive_bayes_naivebayes_spec,
-                  knn = nearest_neighbor_kknn_spec, 
-                  rand_forest = rand_forest_ranger_spec,
-                  svm_linear = svm_linear_kernlab_spec, 
-                  svm_rbf = svm_rbf_kernlab_spec,
-                  xgboost = boost_tree_xgboost_spec
-    )
-  )
-workflow_set2
 
-
-# 6. WORKFLOW SET: UPSAMPLING
-workflow_set2_upsample <- 
-  workflow_set(
-    preproc = list(rec = jp_recipe2_upsample),
-    models = list(decision_tree = decision_tree_rpart_spec,
-                  logistic_reg = logistic_reg_glmnet_spec, 
-                  naive_bayes = naive_bayes_naivebayes_spec,
-                  knn = nearest_neighbor_kknn_spec, 
-                  rand_forest = rand_forest_ranger_spec,
-                  svm_linear = svm_linear_kernlab_spec, 
-                  svm_rbf = svm_rbf_kernlab_spec,
-                  xgboost = boost_tree_xgboost_spec
-    )
+# WORKFLOW SET
+workflow_set2 <- workflow_set(
+  preproc = list(
+    baseline = jp_recipe2,
+    upsample = jp_recipe2_upsample
+  ),
+  models = list(
+    decision_tree = decision_tree_rpart_spec,
+    logistic_reg = logistic_reg_glmnet_spec,
+    naive_bayes = naive_bayes_naivebayes_spec,
+    knn = nearest_neighbor_kknn_spec,
+    rand_forest = rand_forest_ranger_spec,
+    svm_linear = svm_linear_kernlab_spec,
+    svm_rbf = svm_rbf_kernlab_spec,
+    xgboost = boost_tree_xgboost_spec
   )
+)
 
 
 # Tuning
@@ -743,9 +736,10 @@ grid_ctrl <- control_grid(
   save_workflow = TRUE
 )
 
+# Metrics
 metrics <- metric_set(accuracy, roc_auc, f_meas, sens, yardstick::spec)
 
-# Modeller for Baseline
+# Kør grid search på alle modeller i workflow_set
 grid_results2 <- workflow_set2 %>%
   workflow_map(
     seed = 7,
@@ -755,94 +749,56 @@ grid_results2 <- workflow_set2 %>%
     metrics = metrics
   )
 
-
-# Modeller for upsampling
-grid_results2_upsample <- workflow_set2_upsample %>%
-  workflow_map(
-    seed = 7,
-    resamples = churn2_folds,
-    grid = 7,
-    control = grid_ctrl,
-    metrics = metrics
-  )
+# saveRDS(grid_results2, "grid_results2.rds")
+# grid_results <- readRDS("grid_results2.rds")
 
 
-# Sammenligning af baseline modellerne
-baseline_rank <- grid_results2 %>% 
-  rank_results(select_best = TRUE) %>% 
-  select(wflow_id, .metric, mean) %>% 
-  pivot_wider(names_from = .metric, values_from = mean) %>% 
-  arrange(-roc_auc)
-
-baseline_rank
-
-
-# Sammenligning af upsampling modellerne
-upsample_rank <- grid_results2_upsample %>% 
-  rank_results(select_best = TRUE) %>% 
-  select(wflow_id, .metric, mean) %>% 
-  pivot_wider(names_from = .metric, values_from = mean) %>% 
-  arrange(-roc_auc)
-
-upsample_rank
-
-
-
-# Samlet sammenligning: Baseline vs upsampling
-model2_sammenligning <- bind_rows(
-  baseline_rank %>% mutate(version = "Baseline"),
-  upsample_rank %>% mutate(version = "Upsampling")
-) %>%
-  arrange(-roc_auc)
-
-model2_sammenligning
-
-
-# Plot performance for bedste modeller for baseline
+# Plot performance for bedste modeller
 autoplot(grid_results2, select_best = TRUE)
 
-# Plot performance for bedste modeller for upsampling
-autoplot(grid_results2_upsample, select_best = TRUE)
+# Rangér modellerne og se hvilke der performer bedst
+model2_rank <- grid_results2 %>% 
+  rank_results(select_best = TRUE) %>% 
+  select(wflow_id, .metric, mean) %>% 
+  pivot_wider(names_from = .metric, values_from = mean) %>% 
+  mutate(
+    version = if_else(str_detect(wflow_id, "upsample"), "Upsampling", "Baseline"),
+    model = str_remove(wflow_id, "baseline_|upsample_")
+  ) %>%
+  arrange(-roc_auc)
+
+model2_rank
 
 
-# Baseline - Udvælg bedste hyperparameters for en specifik model
+# Udvælg bedste hyperparametre for Random Forest baseline
 best_results2 <- grid_results2 |> 
-  extract_workflow_set_result("rec_xgboost") |> 
+  extract_workflow_set_result("baseline_rand_forest") |> 
   select_best(metric = "f_meas")
 
-# Baseline - Tag workflowet og indsæt de bedste parametre
+best_results2
+
+# Finalisér workflow med de bedste hyperparametre
 final_wf2 <- grid_results2 |> 
-  extract_workflow("rec_xgboost") |> 
+  extract_workflow("baseline_rand_forest") |> 
   finalize_workflow(best_results2)
 
+final_wf2
 
-# Upsampling - Udvælg bedste hyperparameters for en specifik model
-best_results2_upsampling <- grid_results2_upsample |> 
-  extract_workflow_set_result("rec_xgboost") |> 
-  select_best(metric = "f_meas")
-
-# Upsampling - Tag workflowet og indsæt de bedste parametre
-final_wf2_upsampling <- grid_results2_upsample |> 
-  extract_workflow("rec_xgboost") |> 
-  finalize_workflow(best_results2_upsampling)
-
-# Baseline - Test performence
+# Test den endelige model på testdata
 churn2_last_fit <- final_wf2 |> 
   last_fit(churn2_split, metrics = metrics)
 
 collect_metrics(churn2_last_fit)
 
-# Upsampling - Test final_wf2_upsampling
-churn2_last_fit_upsampling <- final_wf2_upsampling |> 
-  last_fit(churn2_split, metrics = metrics)
-
-collect_metrics(churn2_last_fit_upsampling)
-
-# Baseline - CONFUSION MATRIX
+# Confusion matrix
 churn2_last_fit |>
   collect_predictions() |>
-  conf_mat(truth = churn_1måned_efter_forlængelse, estimate = .pred_class)
+  conf_mat(
+    truth = churn_1måned_efter_forlængelse,
+    estimate = .pred_class
+  )
 
+# Gem predictions
 test_preds_2 <- churn2_last_fit |> 
   collect_predictions() |> 
   mutate(
@@ -857,49 +813,37 @@ test_preds_2 <- churn2_last_fit |>
 test_preds_2 |> 
   count(fejltype)
 
-
-# Upsampling - CONFUSION MATRIX
-churn2_last_fit_upsampling |>
-  collect_predictions() |>
-  conf_mat(truth = churn_1måned_efter_forlængelse, estimate = .pred_class)
-
-test_preds_2_upsampling <- churn2_last_fit_upsampling |> 
-  collect_predictions() |> 
-  mutate(
-    fejltype = case_when(
-      churn_1måned_efter_forlængelse == "Yes" & .pred_class == "Yes" ~ "True Positive",
-      churn_1måned_efter_forlængelse == "No"  & .pred_class == "No"  ~ "True Negative",
-      churn_1måned_efter_forlængelse == "No"  & .pred_class == "Yes" ~ "False Positive",
-      churn_1måned_efter_forlængelse == "Yes" & .pred_class == "No"  ~ "False Negative"
-    )
-  )
-
-test_preds_2_upsampling |> 
-  count(fejltype)
-
-
-# Baseline -Feature importance (Xgboost)
+# Fit endelig model på hele model2_df
 final_model2 <- fit(final_wf2, model2_df)
-xgb_fit_2 <- extract_fit_parsnip(final_model2)$fit
-importance_tbl_2 <- xgboost::xgb.importance(model = xgb_fit_2)
+
+final_model2
+
+# Feature importance for endelig Random Forest model
+rf_fit_2 <- extract_fit_parsnip(final_model2)$fit
+
+importance_tbl_2 <- tibble(
+  Feature = names(rf_fit_2$variable.importance),
+  Importance = as.numeric(rf_fit_2$variable.importance)
+) %>%
+  arrange(desc(Importance))
+
 importance_tbl_2
-xgboost::xgb.plot.importance(importance_tbl_2, top_n = 15)
+
+importance_tbl_2 %>%
+  slice_head(n = 15) %>%
+  ggplot(aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Feature importance for Random Forest",
+    x = "Variabel",
+    y = "Importance"
+  ) +
+  theme_minimal()
 
 
-# Upsampling -Feature importance (Xgboost)
-final_model2_upsampling <- fit(final_wf2_upsampling, model2_df)
-xgb_fit_2_upsampling <- extract_fit_parsnip(final_model2_upsampling)$fit
-importance_tbl_2_upsampling <- xgboost::xgb.importance(model = xgb_fit_2_upsampling)
-importance_tbl_2_upsampling
-xgboost::xgb.plot.importance(importance_tbl_2_upsampling, top_n = 15)
-
-
-
-
-
-# Klyngeanalyse for model 2
-
-#vi laver vores datasæt til klyngeanalysen med features der beskriver observationernes kendetegn
+# Klyngeanalyse for Churn 1 måned efter forlængelse ------------------------
+# vi laver vores datasæt til klyngeanalysen med features der beskriver observationernes kendetegn
 cluster_input2 <- data_model2 %>%
   select(
     pseudo_id,
@@ -916,8 +860,6 @@ cluster_input2 <- data_model2 %>%
     churn_1måned_efter_forlængelse
   ) %>%
   drop_na()
-
-
 
 # Vi vælger de variabler der skal bruges til selve klyngeanalysen
 # Vi tager ikke chrun og alder med, da det skal være unsupervised. De skal bruges senere til profilering
@@ -958,7 +900,7 @@ cluster_result2 <- cluster_input2 %>%
   mutate(cluster = factor(kmeans_model2$cluster))
 
 
-#Vi lavr vores profilering af klyngerne
+# Vi lavr vores profilering af klyngerne
 cluster_result2 %>%
   group_by(cluster) %>%
   summarise(
@@ -978,7 +920,7 @@ cluster_result2 %>%
   mutate(prop = n / sum(n))
 
 # Gem som csv fil, så den kan bruges i Power BI
-write.csv(cluster_result2, "cluster_result2.csv", row.names = FALSE)
+# write.csv(cluster_result2, "cluster_result2.csv", row.names = FALSE)
 
 # Vi sætter en profil på hver klynge
 cluster_profile2 <- cluster_result2 %>%
@@ -1001,10 +943,6 @@ cluster_profile2
 cluster_result2 %>%
   group_by(cluster) %>%
   summarise(churn_rate = mean(churn_1måned_efter_forlængelse == 1))
-
-
-
-
 
 
 
