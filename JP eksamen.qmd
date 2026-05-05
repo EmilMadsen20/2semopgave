@@ -9,16 +9,21 @@ format:
     toc-depth: 4
     number-sections: true
     number-depth: 4
-    titlepage: true
+    titlepage: false
     lof: false
     lot: false
-# bibliography: VFF_projekt.bib
+bibliography: jp_projekt_gruppe_7.bib
+execute:
+  echo: false
+  message: false
+  warning: false
 header-includes:
   - \usepackage[a4paper, top=30mm, bottom=30mm, left=20mm, right=20mm, heightrounded]{geometry}
   - \usepackage{booktabs}
   - \usepackage{makecell}
   - \usepackage{pdfpages}
-  # - \AtBeginDocument{\includepdf[pages={1}]{vff_forside.pdf}}
+  - \usepackage{float}
+  - \AtBeginDocument{\includepdf[pages={1}]{forside-til-eksammensopgave.pdf}}
 crossref:
   fig-prefix: ""
   sec-prefix: ""
@@ -29,100 +34,229 @@ editor:
     wrap: 72
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a
-finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that
-includes both content and the output of embedded code. You can embed
-code like this:
-
-```{r}
-1 + 1
-```
-
-You can add options to executable code like this
-
-```{r}
-#| echo: false
-2 * 2
-```
-
-The `echo: false` option disables the printing of code (only output is
-displayed).
-
-
 ```{r}
 #| label: Setup
 #| echo: false
 #| eval: true
+#| message: false
+
 # Pakker
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(knitr, tinytex, tidyverse, tidymodels, lubridate, dplyr, stringr, readr, readxl, 
-               themis, table1, ggpubr, broom, ggfortify, GGally,
-               PerformanceAnalytics, car, caret, skimr, discrim, glmnet,
-               kknn, naivebayes, kernlab, xgboost, gridExtra, rpart, future,
-               ranger, rmarkdown, gt)
+pacman::p_load(
+  knitr, tinytex, tidyverse, tidymodels, lubridate, readr, readxl,
+  themis, table1, ggpubr, broom, ggfortify, GGally,
+  PerformanceAnalytics, car, caret, skimr, discrim, glmnet,
+  kknn, naivebayes, kernlab, xgboost, gridExtra, rpart,
+  future, ranger, rmarkdown, gt
+)
 
 # Options
 options(OutDec = ".")
-try(Sys.setlocale("LC_NUMERIC", "C"), silent = TRUE)
+invisible(try(Sys.setlocale("LC_NUMERIC", "C"), silent = TRUE))
 ```
 
+Executive summary
+
+Jyllands-Posten står over for en central udfordring i at fastholde digitale abonnenter efter kampagneperioden. Mange kunder opsiger deres abonnement ved overgangen til fuld pris, og virksomheden mangler et datadrevet værktøj til at identificere disse kunder i tide. Formålet med projektet er at udvikle modeller, der kan forudsige churn tidligt og skabe et bedre grundlag for målrettede fastholdelsesindsatser. 
+Analysen er baseret på abonnements-, opsigelses- og adfærdsdata fra kundernes første 30 dage. Der er udviklet to machine learning-modeller: én til at forudsige churn ved kampagneudløb og én til at identificere churn indenfor den første måned efter forlængelse. Derudover er der gennemført en klyngeanalyse for at segmentere kunderne baseret på deres adfærd.
+Resultaterne viser, at churn kan forudsiges med en relativt høj grad af præcision. XGBoost er den bedst performende model for churn ved kampagneudløb, mens Random Forest er mest effektiv til tidlig churn efter kampagneudløb. På tværs af modellerne er det især kundernes engagement, målt gennem antal aktive dage, samlet aktivitet og scroll depth, der har størst betydning for churn.
+Klyngeanalysen viser samtidig, at kunder med lav eller faldende aktivitet har markant højere churn-risiko, mens kunder med stabilt engagement er mere loyale.
+Jyllands-Posten bør anvende modellerne som et beslutningsstøtteværktøj til at identificere og prioritere kunder med høj churnrisiko. Kunder med lav aktivitet bør kontaktes tidligt med målrettede fastholdelsestiltag, såsom personaliserede anbefalinger eller tilbud. Samtidig bør modellerne integreres i et Power BI-dashboard, så resultaterne løbende kan anvendes i praksis.
+Det anbefales desuden at justere modellernes threshold for at øge evnen til at identificere churn-kunder, selvom det kan medføre flere false positives.
+Projektet viser, at churn i høj grad kan forklares ud fra kundernes tidlige adfærd. Machine learning gør det muligt at identificere risikokunder med en høj grad af præcision og dermed understøtte en mere proaktiv fastholdelsesstrategi. Samlet set giver analysen Jyllands-Posten et solidt datadrevet grundlag for at reducere churn og styrke kundeloyaliteten.
+
+\newpage
 
 \pagenumbering{gobble} 
 \tableofcontents 
 \newpage 
-\listoffigures 
+\listoffigures
+\newpage
+\listoftables
 \newpage 
 \pagenumbering{arabic} 
 \setcounter{page}{1}
 
+
 # Indledning
 
-# Problemstilling
+I en tid, hvor mediebranchen gennemgår en massiv digital omstilling, er
+fastholdelse af digitale abonnenter blevet et af de absolut mest
+kritiske forretningsområder for mediehuse. For Jyllands-Posten er det
+essentielt at opretholde en stærk og loyal abonnentbase for at sikre en
+kontinuerlig omsætning. Den klassiske udfordring for medievirksomheder
+er dog, at de ofte først bliver opmærksomme på en kundes utilfredshed i
+det øjeblik, kunden aktivt vælger at trykke på "Opsig abonnement". På
+dette tidspunkt er det oftest for sent at redde kunderelationen, og det
+koster markant mere at skaffe en ny kunde end at fastholde en
+eksisterende.[@churnvaekst]
 
-# Afgræsning
+Med udgangspunkt i et omfattende datasæt indeholdende kundernes faktiske
+adfærd, herunder læsevaner, scrolldybde og klikmønstre i de første 30
+dage af deres abonnement, danner dette projekt grundlaget for at hjælpe
+Jyllands-Posten med at bevæge sig fra en reaktiv til en datadrevet,
+proaktiv fastholdelsesstrategi.
+
+## Problemstilling
+
+Hovedproblemet for Jyllands-Posten er fraværet af et proaktivt og
+datadrevet system, der kan identificere kunder i risikozonen for at
+opsige deres abonnement, før opsigelsen rent faktisk finder sted. Dette
+leder frem til projektets centrale problemstilling, som omhandler,
+hvordan Jyllands-Posten kan anvende machine learning og kundernes
+adfærdsdata til at forudsige churn på et tidligt tidspunkt. I
+forlængelse heraf undersøges det, hvordan abonnenterne kan segmenteres i
+operationelle kundetyper, så mediehuset kan målrette deres
+fastholdelsesindsats bedst muligt.
+
+For at løse dette fokuserer projektet på at afdække, hvilke specifikke
+adfærdsmønstre der fungerer som de stærkeste indikatorer for en
+forestående opsigelse, herunder for eksempel antallet af tidligere
+prøveperioder eller en faldende læseaktivitet midt i måneden. Slutteligt
+belyser projektet, hvordan resultaterne fra modellerne bedst muligt kan
+omsættes til konkret og håndgribelig forretningsværdi for
+Jyllands-Postens beslutningstagere.
+
+## Afgrænsning
+
+I denne opgave afgrænses analysen til at tage udgangspunkt i kundernes
+adfærd i de første 30 dage efter kampagnestart. Det skyldes, at det er
+den periode, der findes adfærdsdata for. Analysen tager derfor
+udgangspunkt i denne periode til at forsøge at finde mønstre, der kan
+forklare churn. Det betyder samtidig, at der ikke tages højde for
+ændringer i adfærd senere i kundens abonnements forløb.
+
+Der arbejdes kun med de datasæt, som er stillet til rådighed af
+Jyllands-Posten. Der inddrages derfor ikke eksterne faktorer som fx
+konkurrence, økonomi eller personlige præferencer, udover variablen
+“reason”, hvor kunden giver sin mening til kende. Analysen er dermed
+udelukkende baseret på kvantitative data. Derudover er observationerne
+begrænset.
+
+Fokus i opgaven er, at forudsige churn og finde mønstre i data, og ikke
+på at implementere konkrete løsninger i praksis. Resultaterne skal
+derfor ses som en anbefaling, der kan bruges af Jyllands-Posten, men
+ikke som en færdig løsning.
+
+I modelleringen fjernes der variabler, som kan skabe data leakage. På
+den måde sikres det, at modellerne kun bruger data, som realistisk ville
+være tilgængeligt på det tidspunkt, hvor churn ønskes forudsagt. Endelig
+er der taget udgangspunkt i de modeller og metoder, der er arbejdet med
+i undervisningen. Der findes andre metoder, som er mere avanceret og
+potentielt kunne give bedre resultater, men disse er ikke inkluderet i
+analysen.
 
 # Forretningsforståelse
 
+Projektet tager udgangspunkt i CRISP-DM som en overordnet ramme for at
+strukturere analysen. Forretningsforståelse danner grundlag for
+problemstillingen omkring churn hos Jyllands-Posten, hvorefter data
+forstås og kan forbedres gennem sammensætning og rensning af datasættet.
+Herefter udvikles og evalueres machine learning modeller til at
+forudsige churn og resultaterne omsættes til konkrete anbefalinger til
+Jyllands-Posten. @crispdm
+
+**Udfordringen med churn hos Jyllands-Posten** Jyllands-Postens centrale
+udfordring er at fastholde digitale abonnenter efter kampagneperioden.
+En stor del af kunderne opsiger deres abonnement, når prisen overgår til
+normal listepris, hvilket skaber en ustabil kundebase. Dette påvirker
+forretningen negativt, da værdien af marketingindsatser reduceres, når
+kunderne ikke forbliver abonnenter længe nok til at blive profitable.
+
+**Abonnementsmodel og kampagnestruktur** Abonnementsmodellen er baseret
+på introduktionstilbud med en lav pris i en begrænset periode.
+Efterfølgende overgår abonnementet automatisk til normalpris, medmindre
+kunden opsiger. Denne overgang fungerer som et kritisk tidspunkt, hvor
+kunden vurderer værdien af produktet. Det er derfor i denne fase, at en
+stor del af churn opstår, hvilket gør det særligt relevant at
+identificere risikokunder tidligt i forløbet.
+
+**Forretningsmål**
+
+På baggrund af ovenstående arbejder Jyllands-Posten med følgende
+forretningsmål:
+
+*Reducere churn*
+
+Identificerer kunder med høj risiko for opsigelse, så der kan sættes ind
+med målrettede fastholdelsestiltag.
+
+*Øge fastholdelse*
+
+Skabe indsigt i hvilke faktorer der driver loyalitet, så disse kan
+styrkes.
+
+*Identificere værdifulde kunder*
+
+Udpege kunder med høj sandsynlighed for at fortsætte abonnementet, så
+disse kan udvikles og fastholdes på længere sigt, samtidig med at der
+sættes ind over for kunder med høj churn-risiko.
+
+*Kobling til machine learning*
+
+Machine learning anvendes til at omsætte data om kundeadfærd til
+konkrete forudsigelser. Ved at identificere mønstre i data bliver det
+muligt at udpege kunder med høj churn-risiko samt kunder med høj
+livstidsværdi. Dette understøtter en mere proaktiv tilgang, hvor
+Jyllands-Posten kan handle før opsigelsen, finder sted og dermed arbejde
+mere effektivt med fastholdelse.
+
 # Dataforståelse
+
+I analysen anvendes tre centrale datasæt: subscription, behavior og
+cancellation. Subscription vil fungere som grundlag for analysen og
+indeholder den overordnede information om kunder og deres abonnement.
+Cancellation bidrager med oplysninger om opsigelser og bruges til at
+identificere churn, mens behavior indeholder detaljeret data om
+kundernes aktivitet på platformen. Tilsammen giver datasættene et samlet
+billede af kunden, kundens adfærd og kundens eventuelle opsigelse.
+
+**Overblik over opsætning og sammenkobling**
+
+Arbejdsprocessen med data følger en logisk rækkefølge:
+
+-   Subscription anvendes som udgangspunkt
+-   Cancellation renses ved at fjerne dubletter
+-   Datasættene sammenkobles via pseudo_id
+-   Data renses, og nye variable konstrueres
+-   Behavior-data aggregeres til kundedata
+-   Behavior kobles derefter sammen med de øvrige datasæt via pseudo_id
+
+Resultatet er ét samlet datasæt (final_df), som indeholder både
+kundeinformation, adfærd og churn.
 
 # Data preparation
 
-# Feature engineering
-
-# Machine learning metode
-
-# Exploratory data analysis
-
-# Resultater
-
 ```{r}
-#| echo: true
+#| label: data-indlæsning
+#| echo: false
 #| eval: true
-#| results: hide
+#| results: "hide"
 #| message: false
 #| warning: false
 
-# Indlæsning af datasæt
 subscription <- read_delim("subscription_v2.csv", delim = ";")
 behavior <- read.csv("behavior.csv")
 cancellation <- read.csv("cancellation.csv")
 ```
 
+Der startes med at klargøre data til den videre analyse ved at samle,
+rense og strukturere datasættene, så de kan anvendes samlet. Før
+datasættene kobles sammen, bliver datovariabler omformateret, så de har
+det samme datoformat. Herefter arbejdes der med cancellation-datasættet,
+hvor der undersøges for dubletter på pseudo_id. Der fjernes dubletter,
+så hver kunde kun optræder én gang. Det er nødvendigt for at undgå
+mange-til-mange relationer, når datasættene kobles sammen.
 
 ```{r}
-#| echo: false
-#| include: false
-#| warning: false
+#| label: datoer-og-dubletter
+#| echo: true
+#| eval: true
+#| results: "hide"
 #| message: false
+#| warning: false
 
-
-#Fix dato formater
+# Fix dato formater
 subscription <- subscription %>%
   mutate(
     subscription_cancel_date = as.Date(subscription_cancel_date, format = "%d-%m-%Y"),
@@ -151,8 +285,23 @@ cancellation %>%
 cancellation <- cancellation %>%
   arrange(pseudo_id, desc(expiration_date)) %>%
   distinct(pseudo_id, .keep_all = TRUE)
+```
 
-# Joining af datasæt 
+Derefter kobles subscription og cancellation sammen via pseudo_id, så
+information om både kunden og opsigelse er samlet i ét datasæt. I denne
+proces håndteres manglende værdier, hvor manglende expiration_date
+tolkes som aktive abonnementer og derfor ikke betragtes som en fejl, men
+som en del af datastrukturen. Der oprettes samtidig en aldersvariabel ud
+fra kundens fødselsdato.
+
+```{r}
+#| label: join-subscription-cancellation
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
+
 join_datasæt <- subscription |>
   dplyr::left_join(cancellation, by = "pseudo_id")
 
@@ -171,6 +320,24 @@ join_datasæt <- join_datasæt |>
       as.character(subscription_cancel_date)
     )
   )
+```
+
+Efter sammenkoblingen renses datasættet yderligere. Her oprettes
+variabelen days_after_campaign, som senere bruges til at definere, om en
+kunde churner inden for 1 måned efter forlængelsen. Observationer med
+manglende værdier i nødvendige variabler fjernes, mens manglende værdier
+i eksempelvis expiration_date og days_after_campaign accepteres, da
+dette skyldes aktive abonnementer. Der fjernes også dubletter, så hver
+kunde kun indgår én gang, og en enkelt kendt fejlobservation fjernes fra
+datasættet.
+
+```{r}
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
+
 
 #Lav variabel days_after_campaign
 join_datasæt <- join_datasæt |>
@@ -193,13 +360,41 @@ join_datasæt <- join_datasæt %>%
 
 #Tjek kolonner 
 colSums(is.na(join_datasæt))
+```
 
-# Tæller hvor mange gange hver utm_source (trafikkilde) optræder i datasættet
-join_datasæt |> 
-  count(str_remove(str_extract(order_trackertag, "utm_source=[^&]+"), "utm_source="), sort = TRUE)
+Behavior-datasættet behandles separat, da det indeholder flere
+observationer pr. kunde. For at gøre datasættet anvendeligt i den videre
+analyse, aggregeres dataen, så hver kunde kun optræder én gang med
+samlede mål for aktivitet, engagement og indholdspræferencer. Dette gør
+det muligt at sammenligne kunder på et ensartet grundlag.
+
+Adfærdsdataen omfatter kun de første 30 dage efter kampagnestart, da
+dette er den periode, der er stillet til rådighed. Analysen er derfor
+afgrænset til at tage udgangspunkt i den tidlige brugeradfærd.
+
+Først kategoriseres kundernes læsning ud fra page_url_clean, hvor
+artiklerne opdeles i indholdstyper som politik, indland, erhverv, sport,
+kultur, debat, livsstil og international. Herefter tælles antallet af
+sidevisninger inden for hver artikeltype pr. kunde.
+
+Perioden opdeles i tre intervaller: dag 1-10, dag 11-20 og dag 21-30. På
+den måde oprettes variabler for kundens aktivitet i starten, midten og
+slutningen af kampagneperioden samt en samlet aktivitetsvariabel for de
+første 30 dage.
+
+Til sidst konstrueres yderligere engagementsvariabler. avg_scroll_depth
+viser, hvor langt kunden i gennemsnit scroller i artiklerne,
+forskellige_artikler viser, hvor mange unikke artikler kunden har læst,
+og restricted_share viser andelen af læste artikler, der er låste.
+
+```{r}
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
 
 
-# Nye variabler i behavior df ---------------------------------------------
 #Kig på behavior og laver struktur til page_url
 # Artikeltype: laver en mellemversion af behavior med kategorier i page_url
 behavior_type <- behavior %>%
@@ -302,6 +497,19 @@ restricted_agg <- behavior %>%
     restricted_share = mean(page_restricted, na.rm = TRUE),
     .groups = "drop"
   )
+```
+
+Disse variabler samles efterfølgende i ét aggregeret behavior-datasæt,
+som senere kobles sammen med abonnements- og opsigelsesdata via
+pseudo_id. Resultatet er final_df, som indeholder både kundeinformation,
+abonnementsoplysninger, adfærdsdata og opsigelsesinformation.
+
+```{r}
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
 
 # Nu kan vi samle alle nye df i det samelde behavior_agg
 behavior_agg <- behavior_agg %>%
@@ -310,22 +518,30 @@ behavior_agg <- behavior_agg %>%
   left_join(restricted_agg, by = "pseudo_id") %>%
   left_join(article_type_agg, by = "pseudo_id")
 
-# view(behavior_agg)
-# View(join_datasæt)
 
-#Tjek NA
+# Tjek NA
 colSums(is.na(join_datasæt))
 colSums(is.na(behavior_agg))
 
-#Join behavior_agg og join_datasæt
+# Join behavior_agg og join_datasæt
 final_df <- join_datasæt %>%
   left_join(behavior_agg, by = "pseudo_id")
 
-# Se final dataframe
-# view(final_df)
-
-#Tjek NA
+# Tjek NA
 colSums(is.na(final_df))
+```
+
+Efter sammenkoblingen fjernes observationer uden gyldig aktivitet i de
+første 30 dage, da analysen tager udgangspunkt i tidlig brugeradfærd.
+Derudover fjernes observationer med account_active_days lig 6.
+
+```{r}
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
+
 
 # Filtrerer datasættet, så kun rækker med gyldig aktivitet beholdes,
 # og fjerner observationer med account_active_days lig 6.
@@ -334,6 +550,20 @@ final_df <- final_df %>%
     !is.na(aktivitet_total_30),
     account_active_days != 6
   )
+```
+
+Variablen order_trackertag indeholder information om, hvor kunden kommer
+fra. For at gøre variablen mere anvendelig i modelleringen grupperes
+trafikkilderne i færre kategorier. Kunder fra mail, jp.dk og adwords
+fastholdes som egne kategorier, mens øvrige trafikkilder samles i
+kategorien “andet”.
+
+```{r}
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
 
 final_df %>%
   mutate(source = str_extract(order_trackertag, "(?<=utm_source=)[^&]+")) %>%
@@ -348,51 +578,304 @@ final_df <- final_df %>%
       TRUE ~ "andet"
     )
   )
+```
 
+Til modelleringen oprettes to churn-variable, som bruges i de to machine
+learning-modeller. Den første variabel, churn_ved_kampagne_udløb,
+angiver, om kunden churner ved kampagneudløb eller fortsætter efter
+kampagnen. Kunder uden expiration_date eller med en udløbsdato efter
+kampagnens afslutning betragtes som ikke-churn, mens kunder med
+udløbsdato før eller på kampagnens sidste dag klassificeres som churn.
 
-# Lav churn variabel
+```{r}
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
+
 data_model1 <- final_df |>
   mutate(
     # Opretter variabel der viser om kunden fortsætter efter kampagnen (0) eller churner (1)
     churn_ved_kampagne_udløb = case_when(
-      is.na(expiration_date) ~ 0,               # Ingen slutdato → kunden er stadig aktiv → fortsætter
-      expiration_date > last_campaign_day ~ 0,  # Slutter efter kampagnen → fortsætter
-      expiration_date <= last_campaign_day ~ 1  # Slutter før eller på kampagnedag → churn
+      is.na(expiration_date) ~ 0,               
+      expiration_date > last_campaign_day ~ 0,  
+      expiration_date <= last_campaign_day ~ 1  
     )
   )
+```
 
+Den anden variabel, churn_1måned_efter_forlængelse, oprettes kun for de
+kunder, der fortsætter på et almindeligt online abonnement ved
+kampagneudløb. Denne variabel angiver, om kunden churner inden for én
+måned efter forlængelse. Dermed kan den anden model bruges til at
+undersøge early churn blandt kunder, der umiddelbart fortsætter efter
+kampagnen.
+
+```{r}
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
 
 data_model2 <- data_model1 %>%
   filter(churn_ved_kampagne_udløb == 0) %>%
   mutate(
     days_after_campaign = as.numeric(expiration_date - last_campaign_day),
     churn_1måned_efter_forlængelse = case_when(
-      is.na(expiration_date) ~ 0,            # Ingen slutdato → stadig aktiv → ikke early churn
-      days_after_campaign <= 31 ~ 1,           # Stopper inden for 31 dage → early churn
-      TRUE ~ 0                               # Ellers → bliver længere → ikke early churn
+      is.na(expiration_date) ~ 0,       
+      days_after_campaign <= 31 ~ 1,
+      TRUE ~ 0                               
     )
   )
 ```
 
+# Machine learning metode
+
+Begge modeller opbygges i tidymodels, hvor dataforberedelse og
+modeltræning samles i workflows. Datasættene opdeles i trænings- og
+testdata med et 80/20 split. Der anvendes stratificering på
+målvariablen, så fordelingen mellem churn og ikke-churn bevares i både
+trænings- og testdata. Derudover anvendes 5 fold cross-validation på
+træningsdata, så modellerne evalueres på flere forskellige opdelinger af
+datasættet. Dette giver et mere stabilt grundlag for at vurdere
+modellernes performance end én enkelt opdeling af data.
+
+Inden modellerne trænes, fjernes variabler, der enten ikke bidrager til
+modelleringen eller kan skabe data leakage. Data leakage opstår, hvis
+modellen får adgang til information, der direkte eller indirekte
+afslører kundens churn-status. Det gælder blandt andet datoer og
+variable, som først kendes efter kampagneperioden eller efter en
+eventuel opsigelse. Disse variabler er følgende:
+
+-   pseudo_id,
+-   subscription_cancel_date,
+-   order_date,
+-   birthdate,
+-   usr_created,
+-   first_campaign_day,
+-   last_campaign_day,
+-   expiration_date,
+-   type,
+-   reason,
+-   permission_given_today,
+-   aktivitet_total_30,
+-   days_after_campaign
+
+Churnvariablerne omdannes til faktorer med værdierne “Yes” og “No”, så
+de kan anvendes i klassifikationsmodellerne. “Yes” angiver churn, mens
+“No” angiver, at kunden ikke churner. Kategoriske variabler som køn,
+permission og trafikkilde omdannes ligeledes til faktorer, så de kan
+indgå i modellerne.
+
+Der anvendes den samme preprocessing tilgang gennem recipes. Her
+normaliseres numeriske variable, kategoriske variabler omdannes til
+dummy-variable, nye kategorier i testdata håndteres med step_novel(), og
+variabler uden variation fjernes med step_zv(). Denne tilgang sikrer, at
+data behandles ens på tværs af modellerne, og at modellerne får et mere
+stabilt og sammenligneligt grundlag at lære ud fra.
+
+Modellerne evalueres på accuracy, ROC AUC, F1-score, sensitivitet og
+specificitet. I en churn-analyse er det vigtigt ikke kun at vurdere
+modellerne ud fra accuracy, da en model kan opnå en høj accuracy ved
+primært at forudsige den største klasse. Derfor lægges der også vægt på
+F1-score og ROC AUC, som bedre kan belyse modellens evne til at
+identificere de kunder, der faktisk churner. Alle modeller tunes ved
+hjælp af grid search, hvor forskellige kombinationer af hyperparametre
+testes. Tuning gennemføres sammen med 5 fold cross-validation, så
+modellerne evalueres på et mere robust grundlag. Den endelige model
+vælges på baggrund af modellernes samlede performance og testes derefter
+på testdata, som ikke har været anvendt under træning eller tuning.
+
+## Modeller
+
+Der er anvendt flere forskellige klassifikationsmodeller til at
+forudsige churn ved Jyllands-Postens abonnementer. Modellerne er valgt,
+da de hver især opfanger mønstre i data på forskellige måder. Modellerne
+viser også hvilke variabler der betyder mest for churn / ikke churn.
+
+Logistisk regression anvendes som en simpel og fortolkelig model. Den
+estimerer sandsynligheden for churn ved at vægte de enkelte forklarende
+variabler. I modellen anvendes glmnet, hvor Lasso og Ridge
+regularisering kombineres gennem Elastic Net. Her tuner modellen selv,
+hvilken type regularisering der giver den bedste performance. Dette
+bidrager til at reducere overfitting og hjælper samtidig med at
+identificere de mest relevante variabler.
+
+Decision tree opdeler dataen i en række beslutningsregler. Modellen er
+let at fortolke og gør det muligt at forstå, hvilke variabler der
+påvirker churn. Decision tree er inkluderet, da modellen er let
+fortolkelig og virker godt på mindre datasæt uden at stille krav om
+lineære sammenhænge. Den kan dog overfitte på mindre datasæt, hvis
+“træet” bliver for komplekst. Derfor tunes både træ dybden og minimum
+antal observationer i hvert split.
+
+Naive Bayes beregner sandsynligheden for churn ud fra sandsynlighederne
+for de enkelte forklarende variabler. Modellen bygger på en antagelse
+om, at variablerne er uafhængige, hvilket gør den simpel og hurtig at
+anvende. Modellen fungerer godt som en baseline og giver et hurtigt
+overblik over mønstre i data. Den er dog mindre fleksibel, da den ikke
+kan modellere komplekse sammenhænge mellem variablerne.
+
+KNN klassificerer en kunde ud fra de kunder i træningsdata, der ligner
+mest. Modellen er valgt, da den tager udgangspunkt i kundernes adfærd og
+sammenligner med andre kunder. Hvis kunder opfører sig ens, vil de ofte
+også have samme churn-tendens.
+
+Random Forest består af mange decision trees som hver især forudsiger
+churn baseret på forskellige kombinationer af variabler. Træerne trænes
+på forskellige udsnit af data og variabler, hvilket gør den mere robust.
+Ved at kombinere mange træer reduceres risikoen for overfitting, og
+modellen kan bedre opfange komplekse mønstre. Den er valgt, da den er
+mere robust end en enkelt decision tree og samtidigt kan håndtere mange
+variabler og komplekse sammenhænge i kundernes adfærd.
+
+SVM forsøger at finde den bedste grænse mellem churn og ikke-churn. SVM
+testes både med lineær og RBF-kernel. Den lineære model finder en simpel
+grænse mellem churn og ikke-churn, mens RBF-versionen kan modellere mere
+komplekse og ikke-lineære mønstre. Modellen er inkluderet for at
+undersøge, om churn kan adskilles lineært, eller om der er behov for en
+mere fleksibel model.
+
+XGBoost bygger decision trees sekventielt, hvor hvert nyt træ forsøger
+at rette fejl fra de tidligere træer. Modellen er stærk til komplekse
+datasæt og bruger regularisering, hvilket hjælper med at begrænse
+overfitting. Den er valgt, da den er god til at identificere churn ud
+fra samspillet mellem flere variabler.
+
+Ud over machine learning modellerne er der opstillet to neurale netværk.
+Formålet er at undersøge, om et neuralt netværk kan opfange mere
+komplekse og ikke-lineære sammenhænge i abonnenternes adfærd. Den første
+model Neural Network- churn efter kampagneudløb er en grundmodel. Den
+anden model Neural Network Model 6 - L2 Regularization har samme
+grundstruktur og udvidet med L2-regularisering. L2 blev valgt for at
+straffe for komplekse vægte for at modellen kunne generalisere bedre til
+nye data den ikke har set før. Det kan være med til at reducere
+overfitting.
+
+# Fordeling af churn
+For at kunne analysere og vurdere modellernes performance, undersøges
+først fordelingen af churn i datasættet. Der arbejdes med to
+målvariable: churn ved kampagneudløb og churn 1 måned efter
+kampagneudløb.
+
+```{r}
+#| label: fig-churn-kampagneudloeb
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Fordeling af churn ved kampagneudløb"
+#| fig-pos: "H"
+#| fig-width: 4
+#| fig-height: 3
+
+data_model1 %>%
+  mutate(
+    churn = factor(
+      churn_ved_kampagne_udløb,
+      levels = c(1, 0),
+      labels = c("Yes", "No")
+    )
+  ) %>%
+  count(churn) %>%
+  mutate(
+    andel = n / sum(n),
+    label = paste0(round(andel * 100), "%")
+  ) %>%
+  ggplot(aes(x = churn, y = andel)) +
+  geom_col(fill = "grey35", width = 0.9) +
+  geom_text(aes(label = label), vjust = -0.2, size = 5) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 0.60),
+    breaks = seq(0, 0.60, 0.20)
+  ) +
+  labs(
+    title = "Fordeling af churn ved kampagneudløb",
+    x = "Churn",
+    y = "Andel af kunder"
+  ) +
+  theme_minimal(base_size = 12) +
+theme(
+  plot.title = element_text(size = 10)
+)
+```
 
 
+```{r}
+#| label: fig-churn-en-maaned
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Fordeling af churn én måned efter forlængelse"
+#| fig-pos: "H"
+#| fig-width: 4
+#| fig-height: 3
 
-# Churn ved kampagneudløb Churn churn churn
+data_model2 %>%
+  mutate(
+    churn = factor(
+      churn_1måned_efter_forlængelse,
+      levels = c(1, 0),
+      labels = c("Yes", "No")
+    )
+  ) %>%
+  count(churn) %>%
+  mutate(
+    andel = n / sum(n),
+    label = paste0(round(andel * 100), "%")
+  ) %>%
+  ggplot(aes(x = churn, y = andel)) +
+  geom_col(fill = "grey35", width = 0.9) +
+  geom_text(aes(label = label), vjust = -0.2, size = 5) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 0.85),
+    breaks = seq(0, 0.80, 0.20)
+  ) +
+  labs(
+    title = "Fordeling af churn én måned efter forlængelse",
+    x = "Churn",
+    y = "Andel af kunder"
+  ) +
+  theme_minimal(base_size = 12) +
+theme(
+  plot.title = element_text(size = 10)
+)
+```
 
-I den første churn-model undersøges det, om kunder churner ved kampagneudløb eller fortsætter på et tilsvarende betalende abonnement efter kampagnen. Formålet er at identificere de kunder, der churner efter kampagneperioden, så Jyllands-Posten bedre kan få indsigt i, hvilke kunder der har størst risiko for at churne ved overgangen fra kampagne til almindeligt abonnement.
+Figur 1 og Figur 2 viser fordelingen af churn for de to modeller. Ved
+kampagneudløb churner ca. 42 % af kunderne, mens det for early churn kun
+er ca. 19 %. Det betyder, at datasættet i modellen for churn én måned
+efter kampagnens udløb er mere skævt fordelt, da der er færre
+churn-kunder. Dette kan gøre det sværere for modellen at identificere
+churn korrekt, da den i højere grad påvirkes af den store gruppe af
+kunder, der ikke churner.
 
-Y-variablen er `churn_ved_kampagne_udløb`, hvor “Yes” angiver, at kunden churner ved kampagneudløb, mens “No” angiver, at kunden fortsætter efter kampagnen.
+# Model til churn ved kampagneudløb
+
+I den første churn-model undersøges det, om kunder churner ved
+kampagneudløb eller fortsætter på et tilsvarende betalende abonnement
+efter kampagnen. Formålet er at identificere de kunder, der churner
+efter kampagneperioden, så Jyllands-Posten bedre kan få indsigt i,
+hvilke kunder der har størst risiko for at churne ved overgangen fra
+kampagne til almindeligt abonnement.
+
+Y-variablen er `churn_ved_kampagne_udløb`, hvor “Yes” angiver, at kunden
+churner ved kampagneudløb, mens “No” angiver, at kunden fortsætter efter
+kampagnen.
 
 ```{r}
 #| label: model1-data-target
-#| echo: false
-#| include: false
+#| echo: true
+#| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
 model1_df <- data_model1 |> 
   select(
-    -pseudo_id,
     -subscription_cancel_date,
     -order_date,
     -birthdate,
@@ -420,12 +903,15 @@ model1_df <- data_model1 |>
 
 ## Datasplit og cross-validation
 
-Datasættet opdeles i trænings- og testdata med et 80/20 split. Der anvendes stratificering på målvariablen, så fordelingen mellem churn og ikke-churn bevares i både trænings og testdata. Derudover anvendes cross-validation på træningsdata, så modellerne evalueres på flere forskellige opdelinger af datasættet.
+Modellen følger den modelleringsproces, som er beskrevet i machine
+learning metodeafsnittet, hvor data opdeles i trænings- og testdata, og
+hvor modellerne evalueres gennem k fold cross-validation og tuning.
 
 ```{r}
 #| label: model1-split-cv
-#| echo: false
-#| include: false
+#| echo: true
+#| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
@@ -439,7 +925,10 @@ churn_folds <- vfold_cv(churn_train, v = 5, strata = churn_ved_kampagne_udløb)
 ```
 
 ## Recipe
-Her anvendes der én samlet recipe, hvor numeriske variabler normaliseres, kategoriske variabler håndteres og omdannes til dummy-variable, og variabler uden variation fjernes. Dette sikrer, at data behandles ens på tværs af modellerne, og at modellerne får et mere stabilt grundlag at lære ud fra.
+
+Der anvendes én samlet recipe, for at sikre at dataen behandles ens på
+tværs af modellerne. De enkelte preprocessing-trin er beskrevet i
+metodeafsnittet.
 
 ```{r}
 #| label: model1-recipe
@@ -451,6 +940,7 @@ Her anvendes der én samlet recipe, hvor numeriske variabler normaliseres, kateg
 
 jp_recipe_1 <- 
   recipe(formula = churn_ved_kampagne_udløb ~ ., data = churn_train) |> 
+  update_role(pseudo_id, new_role = "ID") |>
   step_normalize(all_numeric_predictors()) |> 
   step_novel(all_nominal_predictors()) |> 
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |> 
@@ -458,7 +948,10 @@ jp_recipe_1 <-
 ```
 
 ## Modelspecifikationer
-Der testes flere forskellige klassifikationsmodeller, herunder logistisk regression, decision tree, Naive Bayes, KNN, Random Forest, SVM og XGBoost. Modellerne er valgt, fordi de arbejder på forskellige måder og derfor kan opfange forskellige mønstre i data. Nogle modeller er mere simple og fortolkelige, mens andre bedre kan håndtere komplekse og ikke-lineære sammenhænge mellem variabler.
+
+De udvalgte modeller specificeres, så de kan indgå i den efterfølgende
+tuning. På den måde kan modellerne sammenlignes ud fra samme overordnede
+tilgang.
 
 ```{r}
 #| label: model1-modelspecifikationer
@@ -514,7 +1007,10 @@ boost_tree_xgboost_spec <-
 ```
 
 ## Workflow
-De valgte modeller samles i et workflow-set sammen med den opsatte recipe. Det gør det muligt at teste alle modeller på samme preprocessing og dermed sammenligne modellernes performance på et ensartet grundlag.
+
+Recipe og modeller samles i et workflow-set, så alle modeller testes på
+samme datagrundlag. Dette følger den strukturerede workflow-tilgang
+beskrevet i metodeafsnittet.
 
 ```{r}
 #| label: model1-workflow-set
@@ -541,9 +1037,10 @@ jp_workflow_set <-
 ```
 
 ## Evalueringsmetrikker og tuning
-Modellerne evalueres på accuracy, ROC AUC, F1-score, sensitivitet og specificitet. I en churn-analyse er det vigtigt ikke kun at vurdere modellerne ud fra accuracy, da en model kan opnå en høj accuracy ved primært at forudsige den største klasse. Derfor lægges der også vægt på F1-score, sensitivitet og ROC AUC, som bedre belyser modellens evne til at identificere de kunder, der faktisk churner.
 
-Alle modeller tunes ved hjælp af grid search, hvor forskellige kombinationer af hyperparametre testes. Tuning gennemføres sammen med cross-validation, så modellerne evalueres på flere forskellige opdelinger af træningsdata.
+Modellerne evalueres og tunes på baggrund af de valgte metrikker.
+Metrikkerne er valgt, så de både viser modellernes samlede performance
+og deres evne til at identificere churn-kunder.
 
 ```{r}
 #| label: model1-metrikker-og-tuning
@@ -579,24 +1076,34 @@ jp_metrics <- metric_set(
 
 plan(multisession)
 
-grid_results_1 <- jp_workflow_set %>%
-  workflow_map(
-    seed = 7,
-    resamples = churn_folds,
-    grid = 7,
-    control = grid_ctrl,
-    metrics = jp_metrics
-  )
-
-saveRDS(grid_results_1, "grid_results_1.rds")
-
-grid_results_1 <- readRDS("grid_results_1.rds")
+if (file.exists("grid_results_1.rds")) {
+  
+  grid_results_1 <- readRDS("grid_results_1.rds")
+  
+} else {
+  
+  grid_results_1 <- jp_workflow_set %>%
+    workflow_map(
+      seed = 7,
+      resamples = churn_folds,
+      grid = 7,
+      metrics = jp_metrics,
+      control = grid_ctrl
+    )
+  
+  saveRDS(grid_results_1, "grid_results_1.rds")
+}
 
 plan(sequential)
 ```
 
 ## Modelvalg og performance
-Efter tuning rangeres modellerne på baggrund af deres performance i cross-validation. Resultaterne viser, at XGBoost opnår den bedste F1-score på 0,732 samt en ROC AUC på 0,867. Random Forest ligger dog tæt på med en F1-score på 0,722 og en ROC AUC på 0,865. Begge modeller performer derfor stærkt, men XGBoost vælges som den endelige model, da den samlet set opnår den bedste performance på de metrikker, der vægtes højt i churn-analysen.
+
+Resultaterne viser, at XGBoost opnår den bedste F1-score på 0,732 samt
+en ROC AUC på 0,867. Random Forest ligger dog tæt på med en F1-score på
+0,722 og en ROC AUC på 0,865. Begge modeller performer derfor stærkt,
+men XGBoost vælges som den endelige model, da den samlet set opnår den
+bedste performance på de metrikker, der vægtes højt i churn-analysen.
 
 ```{r}
 #| label: model1-modelrangering
@@ -624,23 +1131,29 @@ model1_rank
 
 model1_rank %>%
   mutate(across(c(accuracy, f_meas, roc_auc, sens, spec), ~ round(.x, 3))) %>%
-  knitr::kable()
+  knitr::kable(
+    caption = "Model 1 - Rangering af modeller i cross-validation"
+  )
 ```
 
-På baggrund af resultaterne fra cross-validation vælges XGBoost som den endelige model til churn ved kampagneudløb. Valget skyldes, at modellen opnår den bedste F1-score og samtidig har den højeste ROC AUC blandt de testede modeller. Derudover giver XGBoost mulighed for at arbejde videre med feature importance, hvilket kan give en bedre forståelse af, hvilke variabler der har størst betydning for modellens forudsigelser.
+På baggrund af resultaterne fra cross-validation vælges XGBoost som den
+endelige model til churn ved kampagneudløb. Valget skyldes, at modellen
+opnår den bedste F1-score og samtidig har den højeste ROC AUC blandt de
+testede modeller. Derudover giver XGBoost mulighed for at arbejde videre
+med feature importance, hvilket kan give en bedre forståelse af, hvilke
+variabler der har størst betydning for modellens forudsigelser.
 
 ```{r}
 #| label: model1-final-workflow
 #| echo: true
 #| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
 best_results_1 <- grid_results_1 |> 
   extract_workflow_set_result("rec_xgboost") |> 
   select_best(metric = "f_meas")
-
-best_results_1
 
 final_wf_1 <- grid_results_1 |> 
   extract_workflow("rec_xgboost") |> 
@@ -649,14 +1162,16 @@ final_wf_1 <- grid_results_1 |>
 final_wf_1
 ```
 
-Den endelige XGBoost-model har hyperparametrene `mtry = 15`, `trees = 2000` og `learn_rate = 0,00681`. Modellen testes efterfølgende på testdata for at vurdere, hvordan den performer på observationer, der ikke har været brugt under træning eller tuning.
-
--------------- Måske give mening at lave en graf som viser dette???? ---------------------
+Den endelige XGBoost-model har hyperparametrene `mtry = 15`,
+`trees = 2000` og `learn_rate = 0,00681`. Modellen testes efterfølgende
+på testdata for at vurdere, hvordan den performer på observationer, der
+ikke har været brugt under træning eller tuning.
 
 ```{r}
 #| label: model1-test-performance
 #| echo: true
 #| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
@@ -675,15 +1190,274 @@ collect_metrics(churn_last_fit_1)
 
 collect_metrics(churn_last_fit_1) %>%
   select(.metric, .estimate) %>%
-  mutate(.estimate = round(.estimate, 3)) %>%
+  mutate(
+    .metric = case_when(
+      .metric == "accuracy" ~ "Accuracy",
+      .metric == "roc_auc" ~ "ROC AUC",
+      .metric == "sens" ~ "Sensitivitet",
+      .metric == "spec" ~ "Specificitet",
+      .metric == "f_meas" ~ "F1-score",
+      TRUE ~ .metric
+    ),
+    .estimate = round(.estimate, 3)
+  ) %>%
   knitr::kable(
-    col.names = c("Metrik", "Værdi")
+    col.names = c("Metrik", "Værdi"),
+    caption = "Model 1 – Performance på testdata"
   )
 ```
 
-På testdata opnår XGBoost-modellen en accuracy på 0,728, en F1-score på 0,640, en sensitivitet på 0,576, en specificitet på 0,838 og en ROC AUC på 0,822. Resultaterne viser, at modellen generelt har en god evne til at skelne mellem churn og ikke-churn. Samtidig viser forskellen mellem sensitivitet og specificitet, at modellen er bedre til at identificere kunder, der fortsætter, end kunder der churner. Modellen genkender 83,8 % af de kunder, der ikke churner, mens den identificerer 57,6 % af de kunder, der faktisk churner ved kampagneudløb.
+På testdata opnår XGBoost-modellen en accuracy på 0,728, en F1-score på
+0,640, en sensitivitet på 0,576, en specificitet på 0,838 og en ROC AUC
+på 0,822. Resultaterne viser, at modellen generelt har en god evne til
+at skelne mellem churn og ikke-churn. Samtidig viser forskellen mellem
+sensitivitet og specificitet, at modellen er bedre til at identificere
+kunder, der fortsætter, end kunder der churner. Modellen genkender 83,8
+% af de kunder, der ikke churner, mens den identificerer 57,6 % af de
+kunder, der faktisk churner ved kampagneudløb.
+
+## Neural netværk i colab
+Filen til colab er vedhæftet som ekstramateriale, hvor modellerne kan køres og resultaterne for modellen kan ses.
+
+``` python
+from google.colab import files
+uploaded = files.upload()
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, confusion_matrix, classification_report, precision_score
+
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras import regularizers
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+
+# Indlæs data
+df = pd.read_csv("model_df.csv")
+
+target = "churn_binary"
+
+X = df.drop(columns=[target])
+y = df[target].map({"No": 0, "Yes": 1})
+
+X = pd.get_dummies(X, drop_first=True)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=7,
+    stratify=y
+)
+
+scaler = StandardScaler()
+
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Neural Network Model 1
+model = keras.Sequential([
+    layers.Input(shape=(X_train_scaled.shape[1],)),
+
+    layers.Dense(64, activation="relu"),
+    layers.BatchNormalization(),
+    layers.Dropout(0.3),
+
+    layers.Dense(32, activation="relu"),
+    layers.BatchNormalization(),
+    layers.Dropout(0.3),
+
+    layers.Dense(16, activation="relu"),
+    layers.Dropout(0.2),
+
+    layers.Dense(1, activation="sigmoid")
+])
+
+model.compile(
+    optimizer=keras.optimizers.Adam(learning_rate=0.001),
+    loss="binary_crossentropy",
+    metrics=["accuracy"]
+)
+
+early_stop = keras.callbacks.EarlyStopping(
+    monitor="val_loss",
+    patience=10,
+    restore_best_weights=True
+)
+
+history = model.fit(
+    X_train_scaled,
+    y_train,
+    validation_split=0.2,
+    epochs=100,
+    batch_size=32,
+    callbacks=[early_stop],
+    verbose=1
+)
+
+y_prob = model.predict(X_test_scaled).ravel()
+y_pred = (y_prob > 0.5).astype(int)
+
+result_01 = {
+    "model": "Neural Network 1 churn efter kampagneudløb",
+    "accuracy": accuracy_score(y_test, y_pred),
+    "f1": f1_score(y_test, y_pred),
+    "precision": precision_score(y_test, y_pred),
+    "roc_auc": roc_auc_score(y_test, y_prob)
+}
+
+# Model 6 med L2-regularisering
+keras.backend.clear_session()
+tf.random.set_seed(7)
+
+model_06 = keras.Sequential([
+    layers.Input(shape=(X_train_scaled.shape[1],)),
+
+    layers.Dense(64, activation=None, kernel_regularizer=regularizers.l2(0.01)),
+    layers.BatchNormalization(),
+    layers.Activation("relu"),
+    layers.Dropout(0.3),
+
+    layers.Dense(32, activation=None, kernel_regularizer=regularizers.l2(0.01)),
+    layers.BatchNormalization(),
+    layers.Activation("relu"),
+    layers.Dropout(0.3),
+
+    layers.Dense(16, activation=None, kernel_regularizer=regularizers.l2(0.005)),
+    layers.BatchNormalization(),
+    layers.Activation("relu"),
+    layers.Dropout(0.2),
+
+    layers.Dense(1, activation="sigmoid")
+])
+
+optimizer = keras.optimizers.Adam(
+    learning_rate=0.001,
+    clipvalue=1.0
+)
+
+model_06.compile(
+    optimizer=optimizer,
+    loss="binary_crossentropy",
+    metrics=["accuracy"]
+)
+
+history_06 = model_06.fit(
+    X_train_scaled,
+    y_train,
+    validation_split=0.2,
+    epochs=100,
+    batch_size=32,
+    verbose=1
+)
+
+results_df = pd.DataFrame([result_01])
+results_df
+```
+
+## Sammenligning med neural netværksmodeller
+
+Resultaterne for begge neurale netværk viser, at de opnår en relativt
+høj F1-score, hvilket indikerer, at modellerne er gode til at
+identificere churn-kunder. Samtidig er precision også relativt høj,
+hvilket betyder, at når modellen klassificerer en kunde som churn, er
+det ofte korrekt.
+
+Dog er ROC AUC lavere end for de bedste machine learning-modeller i
+analysen, hvilket indikerer, at neurale netværk er mindre effektive til
+at rangere kunder korrekt efter churnrisiko.
+
+Model 6 med L2-regularisering opnår bedre performance end churn ved
+kampagneudløb på alle metrikker. Dette tyder på, at regularisering
+reducerer overfitting og forbedrer modellens evne til at generalisere
+til nye data.
+
+```{r}
+#| label: tbl_neural_netværk
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+nn_results <- tibble(
+  model = c(
+    "Neural Network Model 1",
+    "Neural Network Model 6 - L2 Regularization"
+  ),
+  accuracy = c(0.672414, 0.689655),
+  f1 = c(0.726619, 0.731343),
+  precision = c(0.711268, 0.742424),
+  roc_auc = c(0.716299, 0.755591)
+) %>%
+  mutate(across(where(is.numeric), round, 3))
+
+knitr::kable(
+  nn_results,
+  col.names = c("Model", "Accuracy", "F1", "Precision", "ROC AUC"),
+  caption = "Sammenligning af neurale netværksmodeller"
+)
+
+```
 
 ## Confusion matrix
+
+```{r}
+#| label: model1-predictions-risiko
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| warning: false
+#| message: false
+
+# Hent predictions og tilføj pseudo_id, fejltype og risikogruppe
+test_preds_1_risiko <- churn_last_fit_1 |> 
+  collect_predictions() |> 
+  bind_cols(churn_test |> select(pseudo_id)) |> 
+  mutate(
+    fejltype = case_when(
+      churn_ved_kampagne_udløb == "Yes" & .pred_class == "Yes" ~ "True Positive",
+      churn_ved_kampagne_udløb == "No"  & .pred_class == "No"  ~ "True Negative",
+      churn_ved_kampagne_udløb == "No"  & .pred_class == "Yes" ~ "False Positive",
+      churn_ved_kampagne_udløb == "Yes" & .pred_class == "No"  ~ "False Negative"
+    ),
+    risiko_gruppe = case_when(
+      .pred_Yes >= 0.70 ~ "Høj risiko",
+      .pred_Yes >= 0.30 ~ "Middel risiko",
+      TRUE ~ "Lav risiko"
+    )
+  )
+
+# Data til confusion matrix-plot
+cm1_df <- test_preds_1_risiko |>
+  count(
+    Prediction = .pred_class,
+    Truth = churn_ved_kampagne_udløb,
+    Type = fejltype,
+    name = "Count"
+  ) |>
+  mutate(
+    Resultat = if_else(
+      Type %in% c("True Positive", "True Negative"),
+      "Korrekt",
+      "Forkert"
+    )
+  )
+```
+
+Confusion matrix viser, at modellen har 57 true positives, hvilket
+betyder, at 57 churn-kunder korrekt klassificeres som churn. Derudover
+har modellen 114 true negatives, hvor kunder korrekt klassificeres som
+ikke-churn. Modellen har samtidig 42 false negatives, hvor faktiske
+churn-kunder fejlagtigt klassificeres som ikke-churn, samt 22 false
+positives, hvor kunder, der ikke churner, fejlagtigt klassificeres som
+churn. Det betyder, at modellen finder lidt over halvdelen af de
+faktiske churn-kunder, men er mere sikker, når den vurderer kunder som
+ikke-churn.
 
 ```{r}
 #| label: fig-model1-confusion-matrix
@@ -691,30 +1465,8 @@ På testdata opnår XGBoost-modellen en accuracy på 0,728, en F1-score på 0,64
 #| warning: false
 #| message: false
 #| fig-cap: "Confusion matrix for modellen for churn ved kampagneudløb"
+#| fig-pos: "H"
 
-cm1 <- churn_last_fit_1 |>
-  collect_predictions() |>
-  conf_mat(
-    truth = churn_ved_kampagne_udløb,
-    estimate = .pred_class
-  )
-
-cm1_df <- as.data.frame(cm1$table) |>
-  rename(
-    Prediction = Prediction,
-    Truth = Truth,
-    Count = Freq
-  ) |>
-  mutate(
-    Type = case_when(
-      Prediction == "Yes" & Truth == "Yes" ~ "True Positive",
-      Prediction == "No"  & Truth == "No"  ~ "True Negative",
-      Prediction == "Yes" & Truth == "No"  ~ "False Positive",
-      Prediction == "No"  & Truth == "Yes" ~ "False Negative"
-    ),
-    Resultat = if_else(Type %in% c("True Positive", "True Negative"), 
-                       "Korrekt", "Forkert")
-  )
 
 ggplot(cm1_df, aes(x = Truth, y = Prediction, fill = Resultat)) +
   geom_tile(color = "white", linewidth = 1.2) +
@@ -733,74 +1485,89 @@ ggplot(cm1_df, aes(x = Truth, y = Prediction, fill = Resultat)) +
     axis.title = element_text(face = "bold"),
     legend.position = "bottom"
   )
+
 ```
 
-Confusion matrix viser, at modellen har 57 true positives, hvilket betyder, at 57 churn-kunder korrekt klassificeres som churn. Derudover har modellen 114 true negatives, hvor kunder korrekt klassificeres som ikke-churn. Modellen har samtidig 42 false negatives, hvor faktiske churn-kunder fejlagtigt klassificeres som ikke-churn, samt 22 false positives, hvor kunder, der ikke churner, fejlagtigt klassificeres som churn. Det betyder, at modellen finder lidt over halvdelen af de faktiske churn-kunder, men er mere sikker, når den vurderer kunder som ikke-churn.
+## Risikogruppe
+
+Fordelingen af risikogrupper for churn ved kampagneudløb viser, at 50,2
+% af kunderne i testdatasættet klassificeres som lav risiko, mens 26,0 %
+vurderes som høj risiko og 23,8 % som middel risiko. Denne opdeling gør
+modellens output mere anvendeligt for Jyllands-Posten, da kunderne kan
+prioriteres efter risikoniveau i stedet for udelukkende at blive
+klassificeret som churn eller ikke-churn.
 
 ```{r}
-#| label: model1-fejltyper
+#| label: tbl-model1-risikogrupper
 #| echo: false
-#| include: false
 #| warning: false
 #| message: false
+#| tbl-cap: "Fordeling af risikogrupper for churn ved kampagneudløb"
+#| tbl-pos: "H"
 
-test_preds_1 <- churn_last_fit_1 |> 
-  collect_predictions() |> 
+test_preds_1_risiko %>%
+  count(risiko_gruppe) %>%
   mutate(
-    fejltype = case_when(
-      churn_ved_kampagne_udløb == "Yes" & .pred_class == "Yes" ~ "True Positive",
-      churn_ved_kampagne_udløb == "No"  & .pred_class == "No"  ~ "True Negative",
-      churn_ved_kampagne_udløb == "No"  & .pred_class == "Yes" ~ "False Positive",
-      churn_ved_kampagne_udløb == "Yes" & .pred_class == "No"  ~ "False Negative"
-    )
-  )
-```
-
-```{r}
-#| label: tbl-model1-fejltyper
-#| echo: false
-#| eval: true
-#| warning: false
-#| message: false
-
-test_preds_1 |> 
-  count(fejltype) %>%
+    procent = round(n / sum(n) * 100, 1),
+    procent = paste0(procent, " %")
+  ) %>%
+  arrange(
+    factor(risiko_gruppe, levels = c("Høj risiko", "Middel risiko", "Lav risiko"))
+  ) %>%
   knitr::kable(
-    col.names = c("Fejltype", "Antal")
+    col.names = c("Risikogruppe", "Antal kunder", "Andel"),
+    align = c("l", "r", "r")
   )
 ```
 
 ## Betydning for Jyllands-Posten
 
-For Jyllands-Posten betyder resultaterne, at modellen kan bruges som et beslutningsstøtteværktøj til at identificere kunder med forhøjet risiko for at churne ved kampagneudløb. Modellen finder en stor del af de kunder, der faktisk churner, men overser stadig 42 churn-kunder i testdata. Det betyder, at modellen ikke bør anvendes som et fuldautomatisk beslutningsgrundlag, men som et værktøj til at prioritere kunder, hvor der kan være behov for en fastholdelsesindsats.
+For Jyllands-Posten betyder resultaterne, at modellen kan bruges som et
+beslutningsstøtteværktøj til at identificere kunder med forhøjet risiko
+for at churne ved kampagneudløb. Modellen finder en stor del af de
+kunder, der faktisk churner, men overser stadig 42 churn-kunder i
+testdata. Det betyder, at modellen ikke bør anvendes som et
+fuldautomatisk beslutningsgrundlag, men som et værktøj til at prioritere
+kunder, hvor der kan være behov for en fastholdelsesindsats.
 
-Samtidig har modellen relativt få false positives sammenlignet med antallet af true negatives. Det betyder, at modellen er forholdsvis sikker, når den vurderer, at en kunde ikke churner.
+Samtidig har modellen relativt få false positives sammenlignet med
+antallet af true negatives. Det betyder, at modellen er forholdsvis
+sikker, når den vurderer, at en kunde ikke churner.
 
 ## Vigtigste variabler for churn ved kampagneudløb
 
-Efter evalueringen trænes den endelige model på hele modeldatasættet, så al data udnyttes i den endelige model.
+Efter evalueringen trænes den endelige model på hele modeldatasættet, så
+al data udnyttes i den endelige model.
+
 ```{r}
 #| label: model1-final-model
-#| echo: false
-#| include: false
+#| echo: true
+#| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
 final_model_1 <- fit(final_wf_1, model1_df)
 ```
 
-Feature importance fra XGBoost-modellen viser, hvilke variabler modellen bruger mest i sine forudsigelser. Her ses det, at `account_active_days` er den klart vigtigste variabel. Derudover har tidligere abonnementer, tidligere kampagner, gennemsnitlig scroll depth, andelen af låste artikler, alder og antallet af forskellige artikler også betydning. Resultaterne peger derfor på, at både kundens samlede tid som abonnement hos Jyllands Posten, tidligere kundehistorik og læseadfærd spiller en rolle i vurderingen af churn ved kampagneudløb.
+Feature importance fra XGBoost-modellen viser, hvilke variabler modellen
+bruger mest i sine forudsigelser. Resultaterne viser, at
+`account_active_days` er den klart vigtigste variabel. Derudover har
+tidligere abonnementer, tidligere kampagner, gennemsnitlig scroll depth,
+andelen af låste artikler, alder og antallet af forskellige artikler
+også betydning. Resultaterne peger derfor på, at både kundens samlede
+tid som abonnement hos Jyllands Posten, tidligere kundehistorik og
+læseadfærd spiller en rolle i vurderingen af churn ved kampagneudløb.
 
 ```{r}
 #| label: model1-feature-importance
-#| echo: false
+#| echo: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
 xgb_fit_1 <- extract_fit_parsnip(final_model_1)$fit
-
 importance_tbl_1 <- xgboost::xgb.importance(model = xgb_fit_1)
-
 importance_tbl_1
 ```
 
@@ -810,17 +1577,19 @@ importance_tbl_1
 #| eval: true
 #| warning: false
 #| message: false
+#| tbl-cap: "Feature importance for XGboost-modellen"
 
 importance_tbl_1 %>%
   as_tibble() %>%
-  slice_head(n = 10) %>%
+  slice_head(n = 15) %>%
   mutate(
     Gain = round(Gain, 3),
     Cover = round(Cover, 3),
     Frequency = round(Frequency, 3)
   ) %>%
   knitr::kable(
-    col.names = c("Variabel", "Gain", "Cover", "Frequency")
+    col.names = c("Variabel", "Gain", "Cover", "Frequency"),
+    caption = "Model 1 - Feature importance for XGBoost"
   )
 ```
 
@@ -845,49 +1614,60 @@ importance_tbl_1 %>%
   theme_minimal()
 ```
 
-Feature importance viser dog ikke, om en variabel øger eller sænker churn-risikoen. Den viser kun, hvor meget variablen bidrager til modellens forudsigelser. Derfor bør feature importance primært bruges til at forstå, hvilke områder der har størst betydning for modellen, og ikke som en direkte forklaring på årsagssammenhænge.
+Feature importance viser dog ikke, om en variabel øger eller sænker
+churnrisikoen. Den viser kun, hvor meget variablen bidrager til
+modellens forudsigelser. Derfor bør feature importance primært bruges
+til at forstå, hvilke områder der har størst betydning for modellen, og
+ikke som en direkte forklaring på årsagssammenhænge.
 
+## Delkonklusion på churn ved kampagneudløb
 
+Samlet set viser resultaterne, at det er muligt at forudsige churn ved
+kampagneudløb med en relativt høj grad af præcision ved hjælp af machine
+learning. XGBoost fremstår som den bedst performende model med den
+højeste F1-score og ROC AUC, hvilket indikerer en stærk evne til både at
+identificere churn-kunder og rangere kunder efter churn-risiko.
 
+Modellen opnår en god samlet performance på testdata, men resultaterne
+viser samtidig en tydelig trade-off mellem sensitivitet og specificitet.
+Modellen er bedre til at identificere kunder, der fortsætter, end kunder
+der churner, hvilket betyder, at en del churn-kunder overses. Dette er
+en vigtig begrænsning i en churn-kontekst, hvor det ofte er mere kritisk
+at identificere så mange risikokunder som muligt.
 
+De neurale netværk opnår fornuftige resultater, særligt målt på
+F1-score, men performer samlet set dårligere end de bedste tree-baserede
+modeller.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Feature importance-analysen viser, at især kundernes aktivitetsniveau,
+historik og engagement har stor betydning for churn. Det indikerer, at
+churn i høj grad er drevet af brugernes adfærd tidligt i
+abonnementsperioden.
 
 # Churn én måned efter forlængelse
-I den anden churn-model undersøges det, om kunder churner inden for én måned efter kampagneudløb. Modellen tager kun udgangspunkt i de kunder, der ikke churner ved selve kampagneudløbet, men som fortsætter over på et betalende abonnement. Formålet er derfor at identificere kunder, der umiddelbart fortsætter efter kampagnen, men som stadig har risiko for at stoppe kort tid efter.
 
-Modellernes målvariabel er `churn_1måned_efter_forlængelse`, hvor ‘Yes’ angiver, at kunden churner inden for den første måned efter forlængelsen, mens ‘No’ angiver, at kunden fortsætter længere end 1 måned eller stadig er aktiv.
+I den anden churn-model undersøges det, om kunder churner inden for én
+måned efter kampagneudløb. Modellen tager kun udgangspunkt i de kunder,
+der ikke churner ved selve kampagneudløbet, men som fortsætter over på
+en betalende abonnent. Formålet er derfor at identificere kunder, der
+umiddelbart fortsætter efter kampagnen, men som stadig har risiko for at
+stoppe kort tid efter.
 
+Modellernes målvariabel er `churn_1måned_efter_forlængelse`, hvor ‘Yes’
+angiver, at kunden churner inden for den første måned efter
+forlængelsen, mens ‘No’ angiver, at kunden fortsætter længere end 1
+måned eller stadig er aktiv.
 
 ```{r}
 #| label: model2-data-target
-#| echo: false
-#| include: false
+#| echo: true
+#| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
 model2_df <- data_model2 %>%
   select(
-    -pseudo_id,
     -subscription_cancel_date,
     -order_date,
     -birthdate,
@@ -913,7 +1693,11 @@ model2_df <- data_model2 %>%
   )
 ```
 
-Fordelingen i datasættet viser, at 126 kunder churner inden for den første måned efter forlængelse, mens 552 kunder ikke gør. Det svarer til, at 20 % churner, mens 80 % ikke churner. Datasættet er derfor ubalanceret, hvilket kan gøre det sværere for modellen at identificere churn-kunderne.
+Fordelingen i datasættet viser, at 126 kunder churner inden for den
+første måned efter forlængelse, mens 552 kunder ikke gør. Det svarer til
+cirka 20 % churner, mens cirka 80 % ikke churner. Datasættet er derfor
+ubalanceret, hvilket kan gøre det sværere for modellen at identificere
+churn-kunderne.
 
 ```{r}
 #| label: model2-target-fordeling
@@ -925,16 +1709,22 @@ model2_df %>%
   count(churn_1måned_efter_forlængelse) %>%
   mutate(procent = round(n / sum(n) * 100, 1)) %>%
   knitr::kable(
-    col.names = c("Churn én måned efter forlængelse", "Antal", "Procent")
+    col.names = c("Churn én måned efter forlængelse", "Antal", "Procent"),
+    caption = "Fordeling af churn én måned efter forlængelse"
   )
 ```
 
-Datasættet opdeles i trænings og testdata med et 80/20 split. Der anvendes stratificering på y-variablen, så fordelingen mellem churn og ikke-churn bevares i både trænings og testdata. Derudover anvendes 5-fold cross-validation på træningsdata, så modellerne evalueres på flere forskellige opdelinger af datasættet.
+## Datasplit og cross-validation
+
+Datasættet opdeles i trænings- og testdata, og der oprettes 5 fold
+cross-validation til tuning af modellerne. Stratificeringen er særlig
+vigtig her, da churn-variablen er mere ubalanceret.
 
 ```{r}
 #| label: model2-split-cv
-#| echo: false
-#| include: false
+#| echo: true
+#| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
@@ -947,9 +1737,15 @@ churn2_test  <- testing(churn2_split)
 churn2_folds <- vfold_cv(churn2_train, v = 5, strata = churn_1måned_efter_forlængelse)
 ```
 
-
 ## Recipe
-Da datasættet er ubalanceret, testes både en baseline-recipe og en recipe med upsampling. Baseline-recipen anvender data i den oprindelige fordeling, mens upsampling-recipen øger antallet af observationer i den sjældne klasse i træningsdata, hvilket her er churn. Formålet med upsampling er at gøre churn-klassen mere synlig for modellen i træning, så den får bedre mulighed for at lære mønstre blandt de kunder, der faktisk churner.
+
+Da datasættet er ubalanceret, testes både en baseline-recipe og en
+recipe med upsampling. Baseline-recipen anvender data i den oprindelige
+fordeling, mens upsampling-recipen øger antallet af observationer i den
+sjældne klasse i træningsdata, hvilket her er churn. Formålet med
+upsampling er at gøre churn-klassen mere synlig for modellen i træning,
+så den får bedre mulighed for at lære mønstre blandt de kunder, der
+faktisk churner.
 
 ```{r}
 #| label: model2-recipes
@@ -961,6 +1757,7 @@ Da datasættet er ubalanceret, testes både en baseline-recipe og en recipe med 
 
 jp_recipe2 <- 
   recipe(churn_1måned_efter_forlængelse ~ ., data = churn2_train) |> 
+  update_role(pseudo_id, new_role = "ID") |>
   step_normalize(all_numeric_predictors()) |> 
   step_novel(all_nominal_predictors()) |> 
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |> 
@@ -968,6 +1765,7 @@ jp_recipe2 <-
 
 jp_recipe2_upsample <- 
   recipe(churn_1måned_efter_forlængelse ~ ., data = churn2_train) |> 
+  update_role(pseudo_id, new_role = "ID") |>
   step_normalize(all_numeric_predictors()) |> 
   step_novel(all_nominal_predictors()) |> 
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |> 
@@ -975,9 +1773,10 @@ jp_recipe2_upsample <-
   step_upsample(churn_1måned_efter_forlængelse, over_ratio = 1)
 ```
 
-
 ## Modelspecificering
-Der testes flere forskellige klassifikationsmodeller, herunder logistisk regression, decision tree, Naive Bayes, KNN, Random Forest, SVM og XGBoost.
+
+De samme modeller specificeres til churn 1 måned efter kampagneudløb, så
+de kan testes på early churn-problemet.
 
 ```{r}
 #| label: model2-modelspecifikationer
@@ -1030,9 +1829,16 @@ boost_tree_xgboost_spec <-
   set_mode("classification")
 ```
 
-
 ## Workflow
-Baseline og upsampling samles i samme workflow-set. Det betyder, at  de to forskellige recipes testes på de samme modeller. På den måde kan både modeller og recipes sammenlignes systematisk.
+
+I churn 1 måned efter kampagneudløb samles baseline og upsampling i
+samme workflow-set. Det betyder, at de to forskellige recipes testes på
+de samme modeller. Baseline-recipe anvender data i den oprindelige
+fordeling, mens upsampling-recipe øger antallet af observationer i den
+sjældne klasse i træningsdata, hvilket her er churn. Dermed kan det
+vurderes, om forskelle i performance skyldes modelvalg eller brugen af
+upsampling.
+
 ```{r}
 #| label: model2-workflow-set
 #| echo: true
@@ -1059,29 +1865,13 @@ workflow_set2 <- workflow_set(
 )
 ```
 
+## Evalueringsmetrikker og tuning
 
-## Evalueringsmetrikker
+Modellerne evalueres og tunes med de samme metrikker som i churn ved
+kampagneudløb.
+
 ```{r}
 #| label: model2-metrikker
-#| echo: true
-#| eval: true
-#| results: "hide"
-#| warning: false
-#| message: false
-
-metrics <- metric_set(
-  accuracy,
-  roc_auc,
-  f_meas, sens,
-  yardstick::spec)
-
-```
-Modellerne evalueres på accuracy, ROC AUC, F1-score, sensitivitet og specificitet. I denne del af analysen er det særligt vigtigt ikke kun at vurdere modellerne på accuracy, da datasættet er ubalanceret. Derfor inddrages også F1-score, sensitivitet og ROC AUC, som bedre belyser modellens evne til at identificere de kunder, der faktisk churner.
-
-
-## Tuning kontrol
-```{r}
-#| label: model2-grid-control
 #| echo: true
 #| eval: true
 #| results: "hide"
@@ -1092,12 +1882,18 @@ grid_ctrl <- control_grid(
   verbose = FALSE,
   save_pred = TRUE,
   parallel_over = "everything",
-  save_workflow = TRUE
-)
+  save_workflow = TRUE)
+
+jp_metrics2 <- metric_set(
+  accuracy,
+  roc_auc,
+  f_meas, sens,
+  yardstick::spec)
+
 ```
 
-
 ## Modeltræning
+
 ```{r}
 #| label: model2-run-models
 #| echo: true
@@ -1106,22 +1902,39 @@ grid_ctrl <- control_grid(
 #| warning: false
 #| message: false
 
-grid_results2 <- workflow_set2 %>%
-  workflow_map(
-    seed = 7,
-    resamples = churn2_folds,
-    grid = 7,
-    control = grid_ctrl,
-    metrics = metrics
-  )
 
-saveRDS(grid_results2, "grid_results2.rds")
-grid_results2 <- readRDS("grid_results2.rds")
+if (file.exists("grid_results2.rds")) {
+  
+  grid_results2 <- readRDS("grid_results2.rds")
+  
+} else {
+  
+  grid_results2 <- workflow_set2 %>%
+    workflow_map(
+      seed = 7,
+      resamples = churn2_folds,
+      grid = 7,
+      metrics = jp_metrics2,
+      control = grid_ctrl
+    )
+  
+  saveRDS(grid_results2, "grid_results2.rds")
+}
+
+
+
 ```
 
-
 ## Resultater
-Efter tuning rangeres modellerne på baggrund af deres performance i cross-validation. Resultaterne viser, at Random Forest med baseline-recipe opnår den bedste samlede performance. Modellen har den højeste ROC AUC på 0,756 samt en F1-score på 0,538. XGBoost baseline ligger næstbedst med en ROC AUC på 0,742 og en F1-score på 0,515. Blandt modellerne med upsampling klarer Random Forest sig bedst med en ROC AUC på 0,740 og en F1-score på 0,520. Upsampling forbedrer dermed ikke den samlede performance i forhold til baseline-modellen.
+
+Efter tuning rangeres modellerne på baggrund af deres performance i
+cross-validation. Resultaterne viser, at Random Forest med
+baseline-recipe opnår den bedste samlede performance. Modellen har den
+højeste ROC AUC på 0,756 samt en F1-score på 0,538. XGBoost baseline
+ligger næstbedst med en ROC AUC på 0,742 og en F1-score på 0,515. Blandt
+modellerne med upsampling klarer Random Forest sig bedst med en ROC AUC
+på 0,740 og en F1-score på 0,520. Upsampling forbedrer dermed ikke den
+samlede performance i forhold til baseline-modellen.
 
 ```{r}
 #| label: model2-modelrangering
@@ -1149,20 +1962,26 @@ model2_rank
 #| warning: false
 #| message: false
 
-
 model2_rank %>%
   mutate(across(c(accuracy, f_meas, roc_auc, sens, spec), ~ round(.x, 3))) %>%
-  knitr::kable()
+  knitr::kable(
+    caption = "Model 2 – Rangering af modeller i cross-validation")
 ```
 
-
 ## Modelvalg
-På baggrund af resultaterne fra cross-validation vælges Random Forest baseline som den endelige model til churn én måned efter forlængelse. Valget skyldes, at modellen samlet set har den bedste evne til at skelne mellem churn og ikke-churn, samtidig med at den har den næst højste f_means score. Selvom upsampling blev afprøvet for at håndtere ubalancen i datasættet, giver baseline-versionen den mest stabile performance.
+
+På baggrund af resultaterne fra cross-validation vælges Random Forest
+baseline som den endelige model til churn én måned efter forlængelse.
+Valget skyldes, at modellen samlet set har den bedste evne til at skelne
+mellem churn og ikke-churn, samtidig med at den har den næsthøjeste
+f_means score. Selvom upsampling blev afprøvet for at håndtere ubalancen
+i datasættet, giver baseline-versionen den mest stabile performance.
 
 ```{r}
 #| label: model2-final-workflow
 #| echo: true
 #| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
@@ -1179,79 +1998,133 @@ final_wf2 <- grid_results2 |>
 final_wf2
 ```
 
-Den endelige Random Forest-model har hyperparametrene `mtry = 16` og `min_n = 21`. Modellen testes efterfølgende på testdata for at vurdere, hvordan den performer på observationer, der ikke har været brugt under træning eller tuning.
+Den endelige Random Forest-model har hyperparametrene `mtry = 16` og
+`min_n = 21`. Modellen testes efterfølgende på testdata for at vurdere,
+hvordan den performer på observationer, der ikke har været brugt under
+træning eller tuning.
 
-------------------- Måske kunne det give mening at lave et plot med træerne -----------------------
 
 ```{r}
 #| label: model2-test-performance
 #| echo: true
 #| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
 
 churn2_last_fit <- final_wf2 |> 
-  last_fit(churn2_split, metrics = metrics)
+  last_fit(churn2_split, metrics = jp_metrics2)
 
 collect_metrics(churn2_last_fit)
 ```
 
-På testdata opnår Random Forest-modellen en accuracy på 0,883, en F1-score på 0,600, en sensitivitet på 0,462, en specificitet på 0,982 og en ROC AUC på 0,869. Resultaterne viser, at modellen generelt har en stærk evne til at skelne mellem churn og ikke-churn. Den høje ROC AUC indikerer, at modellen er god til at rangere kunder efter churn-risiko.
-
-
------------------ Evt. lav en graf, hvor roc kurverne plottes ind -------------------------
-
-Samtidig viser forskellen mellem sensitivitet og specificitet, at modellen er væsentligt bedre til at identificere kunder, der ikke churner, end kunder der churner. Modellen genkender 98,2 % af de kunder, der ikke churner, mens den identificerer 46,2 % af de kunder, der faktisk churner inden for den første måned efter forlængelse.
-Det betyder, at modellen har en tendens til at klassificere flere kunder som ikke-churn. Det reducerer antallet af falske positiver, men medfører samtidig, at flere faktiske churn-kunder bliver overset.
-
-
-## Confusion matrix
 ```{r}
-#| label: model2-confusion-matrix
+#| label: tbl-model1-test-performance_2
 #| echo: false
-#| include: false
+#| eval: true
 #| warning: false
 #| message: false
 
-churn2_last_fit |>
-  collect_predictions() |>
-  conf_mat(
-    truth = churn_1måned_efter_forlængelse,
-    estimate = .pred_class
+collect_metrics(churn2_last_fit) %>%
+  select(.metric, .estimate) %>%
+  mutate(
+    .metric = case_when(
+      .metric == "accuracy" ~ "Accuracy",
+      .metric == "roc_auc" ~ "ROC AUC",
+      .metric == "sens" ~ "Sensitivitet",
+      .metric == "spec" ~ "Specificitet",
+      .metric == "f_meas" ~ "F1-score",
+      TRUE ~ .metric
+    ),
+    .estimate = round(.estimate, 3)
+  ) %>%
+  knitr::kable(
+    col.names = c("Metrik", "Værdi"),
+    caption = "Model 2 – Performance på testdata"
   )
 ```
 
+På testdata opnår Random Forest-modellen en accuracy på 0,883, en
+F1-score på 0,600, en sensitivitet på 0,462, en specificitet på 0,982 og
+en ROC AUC på 0,869. Resultaterne viser, at modellen generelt har en
+stærk evne til at skelne mellem churn og ikke-churn. Den høje ROC AUC
+indikerer, at modellen er god til at rangere kunder efter churnrisiko.
+
+Samtidig viser forskellen mellem sensitivitet og specificitet, at
+modellen er væsentligt bedre til at identificere kunder, der ikke
+churner, end kunder der churner. Modellen genkender 98,2 % af de kunder,
+der ikke churner, mens den identificerer 46,2 % af de kunder, der
+faktisk churner inden for den første måned efter forlængelse. Det
+betyder, at modellen har en tendens til at klassificere flere kunder som
+ikke-churn. Det reducerer antallet af falske positiver, men medfører
+samtidig, at flere faktiske churn-kunder bliver overset.
+
+## Confusion matrix
+
+```{r}
+#| label: model2-predictions-risiko
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| warning: false
+#| message: false
+
+test_preds_2_risiko <- churn2_last_fit |> 
+  collect_predictions() |> 
+  bind_cols(churn2_test |> select(pseudo_id)) |> 
+  mutate(
+    fejltype = case_when(
+      churn_1måned_efter_forlængelse == "Yes" & .pred_class == "Yes" ~ "True Positive",
+      churn_1måned_efter_forlængelse == "No"  & .pred_class == "No"  ~ "True Negative",
+      churn_1måned_efter_forlængelse == "No"  & .pred_class == "Yes" ~ "False Positive",
+      churn_1måned_efter_forlængelse == "Yes" & .pred_class == "No"  ~ "False Negative"
+    ),
+    risiko_gruppe = case_when(
+      .pred_Yes >= 0.70 ~ "Høj early churn-risiko",
+      .pred_Yes >= 0.30 ~ "Middel early churn-risiko",
+      TRUE ~ "Lav early churn-risiko"
+    )
+  )
+
+cm2_df <- test_preds_2_risiko |>
+  count(
+    Prediction = .pred_class,
+    Truth = churn_1måned_efter_forlængelse,
+    Type = fejltype,
+    name = "Count"
+  ) |>
+  mutate(
+    Resultat = if_else(
+      Type %in% c("True Positive", "True Negative"),
+      "Korrekt",
+      "Forkert"
+    )
+  )
+```
+
+Confusion matrix viser, at modellen har 12 true positives, hvilket
+betyder, at 12 churn-kunder korrekt klassificeres som churn. Derudover
+har modellen 109 true negatives, hvor kunder korrekt klassificeres som
+ikke-churn. Modellen har samtidig 14 false negatives, hvor faktiske
+churn-kunder fejlagtigt klassificeres som ikke-churn, samt 2 false
+positives, hvor kunder, der ikke churner, fejlagtigt klassificeres som
+churn.
+
+I den nuværende evaluering af modellen anvendes standard-threshold på
+0,50. Da confusion matrix viser, at modellen overser en del
+churn-kunder, kan threshold i en praktisk anvendelse sænkes til fx 0,35.
+Dette vil øge modellens sensitivitet og gøre det muligt at identificere
+flere churn-kunder. Til gengæld vil flere ikke-churn-kunder blive
+klassificeret som risikokunder.
+
 ```{r}
 #| label: fig-model2-confusion-matrix
-#| echo: true
+#| echo: false
 #| warning: false
 #| message: false
 #| fig-cap: "Confusion matrix for modellen for churn én måned efter forlængelse"
-
-cm2 <- churn2_last_fit |>
-  collect_predictions() |>
-  conf_mat(
-    truth = churn_1måned_efter_forlængelse,
-    estimate = .pred_class
-  )
-
-cm2_df <- as.data.frame(cm2$table) |>
-  rename(
-    Prediction = Prediction,
-    Truth = Truth,
-    Count = Freq
-  ) |>
-  mutate(
-    Type = case_when(
-      Prediction == "Yes" & Truth == "Yes" ~ "True Positive",
-      Prediction == "No"  & Truth == "No"  ~ "True Negative",
-      Prediction == "Yes" & Truth == "No"  ~ "False Positive",
-      Prediction == "No"  & Truth == "Yes" ~ "False Negative"
-    ),
-    Resultat = if_else(Type %in% c("True Positive", "True Negative"), 
-                       "Korrekt", "Forkert")
-  )
+#| fig-pos: "H"
 
 ggplot(cm2_df, aes(x = Truth, y = Prediction, fill = Resultat)) +
   geom_tile(color = "white", linewidth = 1.2) +
@@ -1272,67 +2145,89 @@ ggplot(cm2_df, aes(x = Truth, y = Prediction, fill = Resultat)) +
   )
 ```
 
+## Risikogrupper
 
-Confusion matrix viser, at modellen har 12 true positives, hvilket betyder, at 12 churn-kunder korrekt klassificeres som churn. Derudover har modellen 109 true negatives, hvor kunder korrekt klassificeres som ikke-churn. Modellen har samtidig 14 false negatives, hvor faktiske churn-kunder fejlagtigt klassificeres som ikke-churn, samt 2 false positives, hvor kunder, der ikke churner, fejlagtigt klassificeres som churn.
+For modellen for churn én måned efter forlængelse ses en markant
+anderledes fordeling, hvor 81,8 % af kunderne klassificeres som lav
+risiko, mens 9,5 % og 8,8 % placeres i henholdsvis middel og høj
+risikogruppe. Det viser, at modellen kun identificerer en mindre gruppe
+kunder med høj risiko for at churne inden for den første måned efter
+forlængelse. Fordelingen hænger sammen med, at early churn udgør en
+betydeligt mindre del af datasættet end ikke churn. Da størstedelen af
+kunderne ikke churner inden for den første måned efter forlængelse,
+placerer modellen også en større andel af kunderne i gruppen med lav
+risiko for churn.
 
 ```{r}
-#| label: model2-fejltyper
+#| label: tbl-model2-risikogrupper
 #| echo: false
-#| include: false
 #| warning: false
 #| message: false
+#| tbl-cap: "Fordeling af risikogrupper for churn én måned efter forlængelse"
+#| tbl-pos: "H"
 
-test_preds_2 <- churn2_last_fit |> 
-  collect_predictions() |> 
+test_preds_2_risiko %>%
+  count(risiko_gruppe) %>%
   mutate(
-    fejltype = case_when(
-      churn_1måned_efter_forlængelse == "Yes" & .pred_class == "Yes" ~ "True Positive",
-      churn_1måned_efter_forlængelse == "No"  & .pred_class == "No"  ~ "True Negative",
-      churn_1måned_efter_forlængelse == "No"  & .pred_class == "Yes" ~ "False Positive",
-      churn_1måned_efter_forlængelse == "Yes" & .pred_class == "No"  ~ "False Negative"
+    procent = round(n / sum(n) * 100, 1),
+    procent = paste0(procent, " %")
+  ) %>%
+  arrange(
+    factor(
+      risiko_gruppe,
+      levels = c(
+        "Høj early churn-risiko",
+        "Middel early churn-risiko",
+        "Lav early churn-risiko"
+      )
     )
-  )
-
-test_preds_2 |> 
-  count(fejltype)
-```
-
-```{r}
-#| echo: false
-#| eval: true
-#| warning: false
-#| message: false
-
-test_preds_2 |> 
-  count(fejltype) %>%
+  ) %>%
   knitr::kable(
-    col.names = c("Fejltype", "Antal")
+    col.names = c("Risikogruppe", "Antal kunder", "Andel"),
+    align = c("l", "r", "r")
   )
 ```
 
-For Jyllands-Posten betyder det, at modellen er meget præcis, når den vurderer, at en kunde ikke churner. Til gengæld overser modellen en del af de kunder, der faktisk churner inden for den første måned efter forlængelse. Modellen kan derfor bruges som et beslutningsstøtteværktøj til at identificere kunder med forhøjet early churn-risiko, men den bør ikke anvendes som et fuldautomatisk beslutningsgrundlag.
+## Betydning for Jyllands-Posten
 
-Efter evalueringen trænes den endelige model på hele modeldatasættet, så al tilgængelig data udnyttes i den endelige model.
+For Jyllands-Posten betyder det, at modellen er meget præcis, når den
+vurderer, at en kunde ikke churner. Til gengæld overser modellen en del
+af de kunder, der faktisk churner inden for den første måned efter
+forlængelse. Modellen kan derfor bruges som et beslutningsstøtteværktøj
+til at identificere kunder med forhøjet early churn-risiko, men den bør
+ikke anvendes som et fuldautomatisk beslutningsgrundlag.
+
+Efter evalueringen trænes den endelige model på hele modeldatasættet, så
+al tilgængelig data udnyttes i den endelige model.
 
 ```{r}
 #| label: model2-final-model
-#| echo: false
-#| include: false
+#| echo: true
+#| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
 final_model2 <- fit(final_wf2, model2_df)
-
 final_model2
 ```
 
-
 ## Vigtigste variabler for churn én måned efter forlængelse
-Feature importance fra Random Forest-modellen viser, hvilke variabler modellen bruger mest i sine opdelinger mellem churn og ikke-churn. Her ses det, at `account_active_days` er den klart vigtigste variabel. Det betyder, at kundens aktive abonnementsperiode har haft størst betydning for modellens opdelinger. Derudover har tidligere kampagner, tidligere abonnementer, alder, gennemsnitlig scroll depth, andelen af låste artikler samt aktivitet i starten og midten af kampagneperioden også betydning.
+
+Feature importance fra Random Forest-modellen viser, hvilke variabler
+modellen bruger mest i sine opdelinger mellem churn og ikke-churn. Her
+ses det, at `account_active_days` er den klart vigtigste variabel. Det
+betyder, at kundens aktive abonnementsperiode har haft størst betydning
+for modellens opdelinger. Derudover har tidligere kampagner, tidligere
+abonnementer, alder, gennemsnitlig scroll depth, andelen af låste
+artikler samt aktivitet i starten og midten af kampagneperioden også
+betydning.
 
 ```{r}
 #| label: model2-feature-importance
-#| echo: false
+#| echo: true
+#| eval: true
+#| results: "hide"
 #| warning: false
 #| message: false
 
@@ -1343,8 +2238,6 @@ importance_tbl_2 <- tibble(
   Importance = as.numeric(rf_fit_2$variable.importance)
 ) %>%
   arrange(desc(Importance))
-
-importance_tbl_2
 ```
 
 ```{r}
@@ -1352,10 +2245,10 @@ importance_tbl_2
 #| echo: false
 #| warning: false
 #| message: false
-#| fig-cap: "Feature importance for Random Forest-modellen"
+#| tbl-cap: "Feature importance for Random Forest-modellen"
 
 importance_tbl_2 %>%
-  slice_head(n = 10) %>%
+  slice_head(n = 15) %>%
   mutate(Importance = round(Importance, 2)) %>%
   knitr::kable(
     col.names = c("Variabel", "Importance")
@@ -1363,7 +2256,7 @@ importance_tbl_2 %>%
 ```
 
 ```{r}
-#| label: fig-model2-feature-importance
+#| label: fig-model2-feature-importance-2
 #| echo: false
 #| warning: false
 #| message: false
@@ -1381,5 +2274,739 @@ importance_tbl_2 %>%
   ) +
   theme_minimal()
 ```
-Resultaterne peger på, at både kundens samlede tid som abonnement hos Jyllands Posten, tidligere historik og læseadfærd spiller en rolle i vurderingen af early churn.
-Feature importance viser dog ikke, om en variabel øger eller sænker churn-risikoen. Den viser kun, hvor meget variablen bidrager til modellens forudsigelser. Derfor bør feature importance primært bruges til at forstå, hvilke områder der har størst betydning for modellen, og ikke som en direkte forklaring på årsagssammenhænge.
+
+Resultaterne peger på, at både kundens samlede tid som abonnement hos
+Jyllands Posten, tidligere historik og læseadfærd spiller en rolle i
+vurderingen af early churn.
+
+Feature importance viser dog ikke, om en variabel øger eller sænker
+churnrisikoen. Den viser kun, hvor meget variablen bidrager til
+modellens forudsigelser. Derfor bør feature importance primært bruges
+til at forstå, hvilke områder der har størst betydning for modellen, og
+ikke som en direkte forklaring på årsagssammenhænge.
+
+## Delkonklusion på churn churn en måned efter forlængelse
+
+Samlet set viser resultaterne, at det er muligt at forudsige early churn
+blandt kunder, der fortsætter efter kampagneperioden, men med større
+usikkerhed end i churn ved kampagneudløb. Random Forest fremstår som den
+bedst performende model og opnår den højeste samlede performance målt på
+ROC AUC og F1-score. Modellen har en stærk evne til at rangere kunder
+efter churn-risiko, hvilket gør den velegnet til prioritering af
+indsats.
+
+# Kundeprofiler
+På baggrund af den eksplorative dataanalyse, machine learning-modellerne
+og klyngeanalysen kan Jyllands-Postens abonnenter inddeles i fire
+operationelle adfærdssegmenter. Segmenterne er baseret på kundernes
+aktivitet i de første 30 dage, gennemsnitlig scroll depth, antal læste
+artikler, andel af låst indhold og læsning på tværs af
+artikelkategorier.
+
+Resultaterne viser, at især aktivitetsvariabler som
+`account_active_days`, `aktivitet_total_30` og aktiviteten i starten,
+midten og slutningen af kampagneperioden har stor betydning for
+forståelsen af churn. Klyngeanalysen viser samtidig, at scroll depth
+ikke kan stå alene som indikator for loyalitet. Passive brugere har
+eksempelvis relativt høj scroll depth, men meget lav samlet aktivitet og
+højere churn-rate. Det tyder på, at en stabil læsevane er vigtigere end
+dyb læsning af få artikler.
+
+## Adfærdsmønstre og segmentering
+
+For at gøre disse overordnede kundeprofiler direkte operationelle for
+Jyllands-Postens fremtidige fastholdelsesindsats, er der via en
+klyngeanalyse i Power BI segmenteret abonnenterne yderligere i fire
+specifikke adfærdsklynger:
+
+```{r}
+#| echo: true
+#| eval: true
+#| message: false
+#| warning: false
+
+# Klyngeanalyse 1 ----------------
+# Udvælger relevante variabler til klyngeanalyse
+# Fokust er på adfærd og engagement
+cluster_input <- data_model1 %>%
+  select(
+    pseudo_id,
+    aktivitet_start_10,   # aktivitet i starten af perioden
+    aktivitet_midt_10,    # aktivitet i midten
+    aktivitet_slut_10,    # aktivitet i slutningen
+    avg_scroll_depth,     # hvor langt brugeren scroller (engagement)
+    forskellige_artikler, # antal forskellige artikler læst
+    restricted_share,     # andel af låste artikler
+    politik, erhverv, sport, kultur, andet, debat, indland, international, livsstil,
+    aktivitet_total_30,
+    age,
+    koen,
+    churn_ved_kampagne_udløb
+  ) %>%
+  drop_na()  # fjerner observationer med manglende værdier
+
+
+# Udvælger kun de variabler der skal bruges til selve klyngeanalysen
+cluster_df <- cluster_input %>%
+  select(
+    aktivitet_start_10,   # aktivitet i starten af perioden
+    aktivitet_midt_10,    # aktivitet i midten
+    aktivitet_slut_10,    # aktivitet i slutningen
+    avg_scroll_depth,     # hvor langt brugeren scroller (engagement)
+    forskellige_artikler, # antal forskellige artikler læst
+    restricted_share,     # andel af låste artikler
+    politik, erhverv, sport, kultur, andet, debat, indland, international, livsstil  
+  )
+
+
+# Skalerer data fx scroll er 0.8 og aktivitet er 100, så vil aktivitets variablen fylde mere
+cluster_scaled <- scale(cluster_df)
+
+
+# Kører k-means clustering
+set.seed(7)
+kmeans_model <- kmeans(cluster_scaled, centers = 4, nstart = 25)
+
+
+# Valg af antal klynger (Elbow method)
+
+# Beregner variation inden for klynger (WSS) for k = 1 til 10
+wss <- map_dbl(1:10, function(k){
+  kmeans(cluster_scaled, centers = k, nstart = 20)$tot.withinss
+})
+```
+
+```{r}
+#| label: fig-cluster1-elbow
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Elbow-metode for klyngeanalyse ved churn ved kampagneudløb"
+#| fig-pos: "H"
+
+plot(
+  1:10, wss,
+  type = "b",
+  xlab = "Antal klynger",
+  ylab = "Within-cluster sum of squares"
+)
+```
+
+For at bestemme det optimale antal klynger anvendes elbow-metoden.
+Figuren viser, hvordan within-cluster variation (WSS) falder i takt med
+flere klynger. Der observeres et tydeligt knæk omkring k = 4, hvilket
+indikerer, at yderligere klynger kun giver begrænset forbedring. Derfor
+vælges 4 klynger.
+
+```{r}
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
+
+
+# Tilføjer klynger til datasæt
+# Hver kunde tildeles en klynge
+cluster_result <- cluster_input %>%
+  mutate(cluster = factor(kmeans_model$cluster))
+
+
+# Profilering af klynger
+
+# Beregner gennemsnit for hver klynge så man kan se forskele mellem kundetyper
+cluster_result %>%
+  group_by(cluster) %>%
+  summarise(
+    n = n(),
+    aktivitet = mean(aktivitet_total_30),
+    scroll = mean(avg_scroll_depth),
+    alder = mean(age),
+    churn_rate = mean(churn_ved_kampagne_udløb),
+    .groups = "drop"
+  )
+
+
+# Churn fordelt på klynger
+
+# Tæller hvor mange der churner/ikke churner i hver klynge
+cluster_result %>%
+  count(cluster, churn_ved_kampagne_udløb) %>%
+  group_by(cluster) %>%
+  mutate(prop = n / sum(n))  # beregner andel
+
+# Gem som csv fil, så den kan bruges i Power BI
+write.csv(cluster_result, "cluster_result.csv", row.names = FALSE)
+
+
+# Tabel med klynger
+# 1. Lav en profil-tabel med gennemsnit for hver klynge
+cluster_profile <- cluster_result %>%
+  group_by(cluster) %>%
+  summarise(
+    n = n(),
+    aktivitet_start_10 = mean(aktivitet_start_10),
+    aktivitet_midt_10 = mean(aktivitet_midt_10),
+    aktivitet_slut_10 = mean(aktivitet_slut_10),
+    restricted = mean(restricted_share),
+    alder = mean(age),
+    avg_scroll_depth = mean(avg_scroll_depth),
+    churn_rate = mean(churn_ved_kampagne_udløb),
+    .groups = "drop"
+  )
+
+# view(cluster_result)
+
+```
+
+```{r}
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
+
+# Klyngeanalyse for Churn 1 måned efter forlængelse ------------------------
+cluster_input2 <- data_model2 %>%
+  select(
+    pseudo_id,
+    aktivitet_start_10,
+    aktivitet_midt_10,
+    aktivitet_slut_10,
+    avg_scroll_depth,
+    forskellige_artikler,
+    restricted_share,
+    politik, erhverv, sport, kultur, andet, debat, indland, international, livsstil,
+    aktivitet_total_30,
+    age,
+    koen,
+    churn_1måned_efter_forlængelse
+  ) %>%
+  drop_na()
+
+# Vi vælger de variabler der skal bruges til selve klyngeanalysen
+cluster_df2 <- cluster_input2 %>%
+  select(
+    aktivitet_start_10,
+    aktivitet_midt_10,
+    aktivitet_slut_10,
+    avg_scroll_depth,
+    forskellige_artikler,
+    restricted_share,
+    politik, erhverv, sport, kultur, andet, debat, indland, international, livsstil
+  )
+
+# Alle variabler skal have samme vægt, så de standardiseres
+cluster_scaled2 <- scale(cluster_df2)
+
+
+# Vi skal anvende k-means clustering med 4 klynger og flere startpunkter (25)
+# Den vælger k med den laveste wss
+set.seed(7)
+kmeans_model2 <- kmeans(cluster_scaled2, centers = 4, nstart = 25)
+
+
+# Vi finder ud af hvor mange klynger vi skal bruge
+wss2 <- map_dbl(1:10, function(k){
+  kmeans(cluster_scaled2, centers = k, nstart = 20)$tot.withinss
+})
+
+```
+
+```{r}
+#| label: fig-cluster2-elbow
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Elbow-metode for klyngeanalyse ved churn én måned efter forlængelse"
+#| fig-pos: "H"
+
+plot(
+  1:10, wss2,
+  type = "b",
+  xlab = "Antal klynger",
+  ylab = "Within-cluster sum of squares"
+)
+```
+
+På samme måde som ved cluster 1 anvendes elbow-metoden til at vurdere
+antallet af klynger. Figuren indikerer ligeledes et knæk omkring k = 4,
+hvorfor der også her vælges 4 klynger.
+
+```{r}
+#| echo: true
+#| eval: true
+#| results: "hide"
+#| message: false
+#| warning: false
+
+# Vi tilføjer klynger, altså hver observation tildeles en klynge
+cluster_result2 <- cluster_input2 %>%
+  mutate(cluster = factor(kmeans_model2$cluster))
+
+
+# Vi lavr vores profilering af klyngerne
+cluster_result2 %>%
+  group_by(cluster) %>%
+  summarise(
+    n = n(),
+    aktivitet = mean(aktivitet_total_30),
+    scroll = mean(avg_scroll_depth),
+    alder = mean(age),
+    churn_1måned_efter_forlængelse_rate = mean(churn_1måned_efter_forlængelse == 1),
+    .groups = "drop"
+  )
+
+
+# Vi finder procentdelen af dem der churner i hver klynge
+cluster_result2 %>%
+  count(cluster, churn_1måned_efter_forlængelse) %>%
+  group_by(cluster) %>%
+  mutate(prop = n / sum(n))
+
+# Gem som csv fil, så den kan bruges i Power BI
+# write.csv(cluster_result2, "cluster_result2.csv", row.names = FALSE)
+
+# Vi sætter en profil på hver klynge
+cluster_profile2 <- cluster_result2 %>%
+  group_by(cluster) %>%
+  summarise(
+    n = n(),
+    aktivitet_start = mean(aktivitet_start_10),
+    aktivitet_midt = mean(aktivitet_midt_10),
+    aktivitet_slut = mean(aktivitet_slut_10),
+    restricted = mean(restricted_share),
+    alder = mean(age),
+    scroll = mean(avg_scroll_depth),
+    churn_1måned_efter_forlængelse_rate = mean(churn_1måned_efter_forlængelse),
+    .groups = "drop"
+  )
+
+cluster_profile2
+
+# Find den cluster ned højest chrun rate
+cluster_result2 %>%
+  group_by(cluster) %>%
+  summarise(churn_rate = mean(churn_1måned_efter_forlængelse == 1))
+```
+
+```{r}
+#| label: tbl-kundeprofiler
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+profil_tabel <- cluster_profile2 %>%
+  mutate(
+    profil = case_when(
+      cluster == "1" ~ "Lav engagement",
+      cluster == "2" ~ "Superbrugere",
+      cluster == "3" ~ "Passive brugere",
+      cluster == "4" ~ "Engagerede brugere"
+    ),
+    across(
+      c(aktivitet_start, aktivitet_midt, aktivitet_slut, restricted, alder, scroll,
+        churn_1måned_efter_forlængelse_rate),
+      ~ round(.x, 2)
+    ),
+    churn_1måned_efter_forlængelse_rate =
+      paste0(round(churn_1måned_efter_forlængelse_rate * 100, 1), " %"),
+    restricted = paste0(round(restricted * 100, 1), " %"),
+    scroll = paste0(round(scroll * 100, 1), " %")
+  ) %>%
+  select(
+    Profil = profil,
+    Klynge = cluster,
+    Antal = n,
+    `Aktivitet start` = aktivitet_start,
+    `Aktivitet midt` = aktivitet_midt,
+    `Aktivitet slut` = aktivitet_slut,
+    `Restricted content` = restricted,
+    Alder = alder,
+    `Scroll depth` = scroll,
+    `Churn-rate` = churn_1måned_efter_forlængelse_rate
+  )
+
+knitr::kable(
+  profil_tabel,
+  caption = "Kundeprofiler baseret på klyngeanalyse",
+  align = c("l", "c", "r", "r", "r", "r", "r", "r", "r", "r")
+)
+```
+
+Kundeprofilerne er baseret på klyngeanalysen for churn én måned efter forlængelse (cluster_profile2). Denne analyse fokuserer på kunder, der fortsætter efter kampagneperioden, og giver derfor et mere præcist billede af early churn blandt betalende abonnenter.
+
+**Klynge 1 - Lav engagement** Dette segment har et moderat
+aktivitetsniveau, men stadig begrænset engagement sammenlignet med de
+mere aktive brugere. De læser flere artikler end de passive brugere, men
+uden at nå et niveau, hvor en stærk vane etableres. Scroll depth ligger
+omkring 36 %, hvilket indikerer middel engagement. Denne gruppe
+repræsenterer et vigtigt potentiale, da de med den rette indsats kan
+udvikles til mere loyale brugere.
+
+**Klynge 2 - Superbrugere** Dette er de mest aktive brugere med et
+markant højere aktivitetsniveau end de øvrige segmenter. De læser
+ekstremt mange artikler (klart højest i jeres tabel) og har en stabil og
+konsistent brug af platformen. Selvom deres gennemsnitlige scroll depth
+(ca. 29 %) er lavere end de øvrige grupper, skyldes det sandsynligvis,
+at de skimmer flere artikler hurtigt. De udgør kernen af loyale kunder
+og har meget lav churn-risiko samt potentiale for mersalg.
+
+**Klynge 3 - Passive brugere** Dette segment er kendetegnet ved meget
+lav aktivitet og et begrænset antal læste artikler. De har samtidig en
+relativt høj gennemsnitlig scroll depth (ca. 42 %), hvilket indikerer,
+at de få artikler, de læser, faktisk læses relativt grundigt. På trods
+af dette er deres samlede engagement lavt, og de udgør en gruppe med
+forhøjet churn-risiko, da de ikke opbygger en stabil læsevane.
+
+**Klynge 4 - Engagerede brugere** Dette segment udviser et højt
+aktivitetsniveau med mange læste artikler og en relativt høj variation i
+indhold. De har en gennemsnitlig scroll depth på ca. 32 %, hvilket
+indikerer, at de konsumerer meget indhold, men ikke nødvendigvis
+fordyber sig i alle artikler. Gruppen har generelt lavere churn-risiko
+og repræsenterer stabile abonnenter, som allerede har etableret en god
+læsevane.
+
+# Visualisering
+I undersøgelsen anvendes der Power BI, et værktøj til visualisering af
+analysen hvor sammenhæng mellem churn og brugeradfærd fremhæves. Her
+kobles resultaterne fra de statistiske modeller sammen med
+visualiseringer af data, så sammenhænge mellem churn, kundeadfærd og
+risikogrupper bliver lettere at fortolke.
+
+**Churn rate**
+Gauge-visualiseringerne viser, at 495 ud af 1173 kunder churner ved kampagneudløb. Det svarer til ca. 42 % af kunderne, som dermed opsiger abonnementet, inden de overgår til et almindeligt betalende abonnement. Dette vurderes som en høj churn-rate og understreger, at overgangen fra kampagnepris til normalpris er en væsentlig udfordring for Jyllands-Posten.
+
+For churn én måned efter kampagneudløb viser visualiseringen, at 126 ud af 678 kunder churner. Det svarer til ca. 19 %. Churn-raten er dermed lavere end ved selve kampagneudløbet, men viser stadig, at en del kunder falder fra kort tid efter, at de er fortsat på et betalende abonnement.
+
+**Gennemsnitlig churn efter aktivitet i de første 30 dage**
+
+Kurvediagrammet viser sammenhængen mellem churn og aktivitet i de første 30 dage. For churn ved kampagneudløb ses det, at churn-raten er lavere blandt kunder med høj og stabil aktivitet, mens churn-raten er højere blandt kunder med lav eller faldende aktivitet. Det indikerer, at jo mere aktiv en kunde er i starten af abonnementsperioden, desto lavere er sandsynligheden for churn.
+
+Samme overordnede mønster ses for churn én måned efter kampagneudløb. Det understreger, at kundernes adfærd i de første 30 dage er en central indikator for, om de fortsætter abonnementet eller falder fra.
+
+**Årsager til churn**
+
+Søjlediagrammet over årsager til churn ved kampagneudløb viser, at få årsager dominerer. Den mest angivne årsag er “ikke tid”, efterfulgt af kunder, der ikke ønsker at oplyse en årsag, samt årsager relateret til redaktionelt indhold eller holdning. Pris fremstår først som den fjerde største årsag.
+
+Diagrammet for churn én måned efter kampagneudløb viser et lignende mønster. Det indikerer, at churn i høj grad hænger sammen med manglende tid, relevans og engagement, mens pris ikke fremstår som den primære forklaring.
+
+**Churn efter gennemsnitlig scroll depth**
+
+Visualiseringen viser sammenhængen mellem churn og gennemsnitlig scroll depth. For churn ved kampagneudløb ses et mindre entydigt mønster, hvor nogle kunder med relativt høj scroll depth stadig churner. Det kan indikere, at scroll depth alene ikke er tilstrækkelig til at forklare churn eller fastholdelse.
+
+For churn én måned efter kampagneudløb ses en svag tendens til, at kunder med lavere scroll depth har højere churn. Samlet set viser visualiseringerne dog, at scroll depth bør fortolkes sammen med andre aktivitetsmål. En kunde kan godt læse enkelte artikler grundigt uden nødvendigvis at have opbygget en stabil læsevane.
+
+**Aldersfordeling**
+
+Aldersfordelingen bruges til at belyse, hvilke aldersgrupper der i højere grad churner. Visualiseringerne viser, at middelaldersgruppen fylder mest blandt churn-kunderne i både churn ved kampagneudløb og churn én måned efter kampagneudløb. Det kan hænge sammen med, at denne gruppe ofte er erhvervsaktiv og derfor kan opleve større tidsmæssige begrænsninger. Dette passer også med, at “ikke tid” fremstår som den mest dominerende angivne årsag til churn.
+
+**Gennemsnitlig churn efter total aktivitet i de første 30 dage**
+
+Visualiseringerne viser samme overordnede tendens for begge churn-definitioner: Churn-raten er højest blandt kunder med lav samlet aktivitet i de første 30 dage. Det understøtter, at tidlig aktivitet er en central indikator for fastholdelse.
+
+Når aktiviteten er lav eller falder gennem perioden, tyder det på, at kunden ikke får opbygget en fast vane omkring brugen af Jyllands-Posten. Omvendt indikerer højere og mere stabil aktivitet, at kunden i højere grad finder værdi i produktet.
+
+**Churn-rate efter account active days**
+
+Visualiseringen af churn-rate efter account_active_days viser, at kundens samlede tid som abonnent også har betydning for churn. For churn ved kampagneudløb ses der variation på tværs af anciennitetsgrupper, hvor enkelte grupper med højere account_active_days har en højere churn-rate. For churn én måned efter kampagneudløb ses en tendens til, at kunder med færre aktive dage har højere churn-rate.
+
+Dette indikerer, at både nye og mere erfarne kunder kan være i risiko for churn, men af forskellige årsager. Nye kunder kan være hurtigere til at falde fra, hvis kampagnetilbuddet ikke omsættes til en stærk læsevane, mens mere erfarne kunder kan opsige abonnementet, hvis den oplevede værdi ikke længere matcher prisen eller behovet.
+
+**Samlet vurdering af visualiseringerne**
+
+Samlet set viser visualiseringerne, at 42 % af kunderne churner ved kampagneudløb, mens 19 % churner inden for én måned efter forlængelse. Det understreger, at den største churn-udfordring opstår ved overgangen fra kampagne til almindeligt abonnement.
+
+Visualiseringerne peger samtidig på, at lav aktivitet i de første 30 dage er en af de tydeligste indikatorer for churn. Manglende tid fremstår som den mest dominerende angivne årsag, og middelaldersgruppen fylder mest blandt churn-kunderne. Pris har også betydning for nogle kunder, men fremstår ikke som den primære årsag i visualiseringerne.
+
+På baggrund af visualiseringerne vurderes det, at Jyllands-Posten bør have særligt fokus på at øge kundernes aktivitet tidligt i abonnementsperioden. En målrettet strategi med relevant indhold, personaliserede anbefalinger og aktivering i kampagneperioden kan bidrage til at styrke læsevanen og reducere churn-risikoen både ved kampagneudløb og i perioden efter forlængelse.
+
+Cluster 1 er baseret på churn ved kampagneudløb hvor alle abonnementer
+inkluderes og cluster 2 er baseret på churn 1 måned efter kampagneudløb
+hvor alle abonnementer der churnede ved kampagnes slutdato er
+frasorteret.
+
+
+Klyngerne er blevet opdelt i R-koden og senere navngivet i Power BI på baggrund af aktivitetsvariablerne. Superbrugere er de mest aktive abonnenter, efterfulgt af engagerede brugere, lavt engagement og passive brugere som den mindst aktive gruppe. Navngivningen er derfor baseret på klyngernes adfærdsmønstre og ikke på en naturlig rangering af klyngenumrene.
+
+Det grupperede liggende søjlediagram viser hvert cluster-segments
+læsevaner. Matrixen viser et overblik over hvert segmentets aktivitet i
+de første 30 dage af abonnementet. De tre stablede søjlediagrammer viser
+henholdsvis gennemsnitlig scroll, churn og artikler læst, der kræver
+abonnement.
+
+På tværs af alle visualiseringer viser cluster 1 og cluster 2 de samme
+overordnede sammenhænge. Høj aktivitet hænger sammen med lav churn, mens
+lav aktivitet, høj scroll depth og høj andel af restricted content
+hænger sammen med høj churn. Konsistensen mellem de to clusters på trods
+af forskellige modeller understøtter, at engagement er den centrale
+driver for fastholdelse.
+
+## CRAP
+Contrast (kontrast) ses tydeligt i farvevalget, hvor blå er den dominerende farve til grafer og KPI’er, mens orange bruges som kontrastfarve i fx aldersgrupper. Baggrunden er holdt i lyse grå/hvide nuancer, hvilket gør de blå og orange elementer mere fremtrædende. Dette skaber et klart visuelt hierarki, hvor de vigtigste data hurtigt fanger brugerens opmærksomhed.
+
+Repetition (gentagelse) er anvendt ved konsekvent brug af blå farve i søjlediagrammer, linjediagrammer og KPI’er. Den samme farve repræsenterer gennemgående churn-relaterede målinger, hvilket skaber genkendelighed og gør dashboardet nemmere at aflæse.
+
+Alignment (justering) fremgår af den strukturerede opbygning, hvor visualiseringerne er placeret i et grid. Graferne er justeret horisontalt og vertikalt, hvilket giver et ryddeligt og professionelt udtryk uden visuel støj.
+
+Proximity (nærhed) ses ved, at relaterede analyser er placeret tæt sammen. Fx er churn over tid, churn efter aktivitet og churn efter alder grupperet i samme område, hvilket gør det nemt for brugeren at forstå sammenhænge mellem forskellige churn-dimensioner.
+Samlet set bidrager disse designvalg til et overskueligt og intuitivt dashboard, hvor brugeren hurtigt kan identificere mønstre i churn og træffe datadrevne beslutninger. @crap
+
+# Datajura og etik
+
+## Identifikation af juridiske og etiske problemstillinger
+
+Databeskyttelsesforordningen (GDPR) artikel 5, artikel 6 og artikel 22
+Markedsføringsloven § 10
+
+I analysen anvendes data fra Jyllands-Postens abonnenter til at opbygge
+prædiktive modeller, der kan forudsige churn. Dette indebærer både
+juridiske og etiske problemstillinger:
+
+For det første behandles personoplysninger, herunder demografiske
+data, detaljeret adfærdsdata såsom læseaktivitet, scroll depth og
+artikelpræferencer. Selvom data er pseudonymiseret via pseudo_id, er der
+fortsat tale om personoplysninger, da de kan henføres til en
+identificerbar person af den dataansvarlige Jyllands-Posten.
+
+For det andet foretages en profilering gennem anvendelsen af machine
+learning-modeller, hvor brugernes churn risiko på baggrund af historiske
+data forudsiges, jf. GDPR artikel 22. Profilering er i sig selv tilladt,
+men kan være et problem, hvis fuldautomatiske beslutninger tages uden
+menneskelig indgriben.
+
+Der opstår her potentielle problemstillinger i forhold til:
+
+-   Anvendelse af data til andre formål end oprindeligt indsamlet
+    (formålsbegrænsning, artikel 5)
+-   Brug af modellen til markedsføring og kundepåvirkning
+    (markedsføringsloven § 10)
+-   Brug af modeller, hvor det kan være svært at forklare beslutninger,
+    da de ikke er tydelige i modellen (jf. GDPR artikel 5) @gdprdk
+
+Derudover opstår der en særlig problemstilling i forbindelse med, at
+data behandles på vegne af Jyllands-Posten. Da der er tale om
+personoplysninger, er behandlingen omfattet af GDPR, hvilket stiller
+krav til ansvarlig datahåndtering, datasikkerhed, dataminimering og
+begrænset adgang til personoplysninger.
+
+Etisk set kan dataanalysen være udfordrende, da brugernes adfærd
+analyseres detaljeret og kan føles som overvågning. Samtidig kan
+modellen føre til uretfærdig opdeling af forskellige brugergrupper og
+bruges til at påvirke brugernes valg gennem målrettet markedsføring, som
+nævnt tidligere.
+
+## Drøftelse af problemstillinger
+
+Behandlingen af data er omfattet af GDPR og kræver et gyldigt
+behandlingsgrundlag, jf. artikel 6. Der vurderes at behandlingen kan
+baseres på gyldig interesse, da formålet er at analysere churn og skabe
+forretningsværdi. Dette kræver dog en interesseafvejning, der betyder at
+Jyllands-Postens interesse skal veje tungere end brugerens ret til
+privatliv, og behandlingen ikke er unødigt indgribende for den enkelte
+bruger.
+
+Brugen af detaljeret adfærdsdata er ikke ulovlig i sig selv, men kan
+være problematisk i forhold til dataminimering, jf. artikel 5, hvis der
+bliver anvendt mere data end nødvendigt.
+
+Profilering (data brugt til at forudsige en persons adfærd) er tilladt,
+men bliver først et reelt problem, hvis beslutninger træffes fuldt
+automatisk uden menneskelig kontrol, jf. artikel 22. I analysen anvendes
+modellen som beslutningsstøtte, hvilket reducerer denne risiko.
+
+Bias er ikke direkte reguleret i GDPR, men hænger sammen med princippet
+om fairness og korrekt behandling af data. Hvis modellen systematisk
+stiller bestemte grupper dårligere, kan det være problematisk.
+
+I forhold til markedsføring er det ikke et problem at identificere
+relevante kunder, men det bliver et problem, hvis de kontaktes uden
+samtykke, jf. markedsføringsloven § 10 @markedsforing2017.
+
+## Forslag til håndtering
+
+*For at håndtere de identificerede problemstillinger vurderes disse
+punkter at være noget Jyllands-Posten skal være opmærksom på:*
+
+-   Sikre dataminimering, jf. GDPR artikel 5
+-   Sikre tydelig information til brugerne om databehandling, fx ved
+    cookies, accept på mail eller andet.
+-   Teste modellen for bias og skævheder
+-   Anvende modellen som beslutningsstøtte og ikke automatiseret
+    beslutning (artikel 22)
+
+*I forhold til markedsføring:*
+
+-   Sikre samtykke før kontakt, jf. markedsføringsloven § 10
+
+*I forhold til datahåndtering:*
+
+-   Sikre korrekt og sikker behandling af data
+-   Begrænse deling af personfølsom data
+-   Sikre ansvarlig anvendelse af resultater
+
+## Kobling til brug af data og modeller
+
+I analysen anvendes der data fra Jyllands-Postens abonnenter til at
+identificere churn gennem machine learning-modeller. Resultaterne viser,
+at især adfærdsvariabler som account_active_days, aktivitet_total_30 og
+avg_scroll_depth, der har stor betydning for modellens performance.
+
+Dette viser, at nogle af de mest værdifulde variabler også er de mest
+følsomme, hvilket stiller krav til dataminimering og transparens, jf.
+artikel 5.
+
+Modellen giver et stærkt beslutningsgrundlag i forhold til
+Jyllands-Postens markedsføring imod kunder med høj churnrisiko. Det er
+dog afgørende, at resultaterne anvendes inden for de juridiske rammer,
+herunder GDPR og markedsføringsloven.
+
+# Diskussion
+
+## Styrker ved modellen
+
+Modellernes primære styrke er deres evne til at omsætte komplekse
+adfærdsdata til konkrete fastholdelsesindsatser. Begge endelige
+modeller, XGBoost for kampagne udløb (churn ved kampagneudløb) og random
+forest for early churn (churn 1 måned efter kampagneudløb) opnår en
+stærk ROC AUC score. De har især en meget høj specificitet, hvilket
+betyder at, at de præcist identificere de sande loyale kunder (True
+Negatives). Dermed undgår Jyllands-Posten at spilde markedsføringsbudget
+på kunder, der alligevel ville blive. Yderligere gør feature importance
+(hvor variabler som account_active_days og avg_scroll_depth er
+afgørende) modellernes output direkte operationelt for forretningen.
+
+## Svagheder
+
+Den største metodiske udfordring er modellernes sensitivitet. De
+producerer false negatives ved at overse en andel af de kunder, der
+reelt ender med at churne. Dette udspringer af datasættets kraftige
+ubalance, hvor loyale kunder udgør det absolutte flertal. Selvom
+problemet er forsøgt afhjulpet af upsampling i en recipe, viste
+evalueringen, at baseline Random Forest modellen alligevel performede
+bedst samlet set. Modellerne har derfor en tendens til at klassificere
+usikre observationer som loyale kunder.
+
+## Data Begrænsninger
+
+En væsentlig begrænsning i analysen er, at modellerne bygger på et
+afgrænset antal adfærdsvariabler. Der indgår centrale engagementsmål som
+aktivitet, scroll depth og antal læste artikler, men der mangler mere
+nuancerede oplysninger om kundernes motivation, oplevede værdi og
+brugeroplevelse.
+
+Analysen er derfor primært baseret på kvantitative data. Selvom
+datasættet indeholder variablen reason, giver den kun begrænset indsigt
+i de bagvedliggende årsager til churn, da den kun registreres ved
+opsigelse og ofte er overordnet kategoriseret.
+
+Modellerne kan derfor især identificere, hvilke kunder der har forhøjet
+churn-risiko, men i mindre grad forklare, hvorfor kunderne vælger at
+opsige abonnementet.
+
+## Overfitting og Bias
+
+Risikoen for overfitting er minimeret gennem en stringent metode med
+80/20 stratificeret data split og 5-fold cross validation under hyper
+parameter tuning. Modellernes stærke performance på de usete testdata
+bekræfter, at de har lært generelle mønstre i stedet for blot at lære
+træningsdataene udenad. Det er dog afgørende at understrege en potentiel
+analytisk bias omkring feature importance. Modeller påviser korrelation,
+ikke kausalitet. At en høj rulledybde er forbundet med loyalitet betyder
+ikke, at mere scrolling i appen skaber fastholdelse. Rulle Dybden er
+blot et symptom på en ægte interesse for journalistikken, og denne
+skelnen er vigtig, når resultaterne skal omsættes til strategi.
+
+# Anbefaling
+
+På baggrund af analysens resultater anbefales det, at Jyllands-Posten
+anvender churn-modellerne som beslutningsstøtte i arbejdet med
+fastholdelse af abonnenter. Modellen identificerer ikke blot, hvilke
+kunder der har høj churn-risiko, men også hvilke adfærdsmønstre der
+kendetegner disse kunder, hvilket gør den anvendelig som
+beslutningsstøtte i virksomheden.
+
+I praksis kan Jyllands-Posten løbende opdatere de tre datasæt og bruge
+samme pipeline for at samle og rense data, beregne adfærdsvariabler og
+evaluere, hvilken model der performer bedst på det opdaterede
+datagrundlag. Resultaterne kan herefter visualiseres i Power BI, hvor
+marketingafdelingen får et opdateret overblik over churn-risiko,
+kundesegmenter og centrale adfærdsmønstre. Dermed bliver modellen et
+værktøj frem for en engangsanalyse.
+
+På baggrund af klyngeanalysen kan kunderne opdeles i segmenter, hvor
+indsatsen målrettes der, hvor effekten er størst. Ved hjælp af kundernes
+pseudo-id kan modellens output kobles direkte til konkrete handlinger i
+marketingarbejdet.
+
+Kunder med lav aktivitet og høj churn-risiko bør kontaktes hurtigt med
+målrettede retention-tiltag, såsom personlige e-mails, relevante
+artikler og tidsbegrænsede tilbud. Kunder med moderat aktivitet kan
+påvirkes gennem personaliserede anbefalinger og nyhedsbreve, der
+understøtter en stabil læsevane. Loyale kunder kan fastholdes og
+udvikles gennem eksklusivt indhold og mersalg, mens dybdelæsere bør
+mødes med kvalitetsindhold, der matcher deres præferencer og styrker
+deres oplevede værdi.
+
+Det anbefales desuden, at Jyllands-Posten arbejder videre med
+modellernes threshold. Ved at sænke threshold kan modellerne
+identificere flere churn-kunder, selvom det vil medføre flere false
+positives. I en churn-kontekst kan dette være acceptabelt, da det ofte
+er vigtigere at fange flest mulige risikokunder end at undgå alle
+fejlagtige markeringer.
+
+Endelig bør Jyllands-Posten udvide datagrundlaget med flere og mere
+nuancerede adfærdsparametre. De nuværende variabler forklarer primært,
+hvordan kunderne bruger platformen, men i mindre grad hvorfor de
+churner. Ved at inkludere yderligere data som klik på nyhedsbreve, tid
+brugt på artikler, søgeadfærd og kundetilfredshed kan modellen opnå en
+bedre forståelse af kundernes motivation. Dette vil styrke både
+modellens forklaringskraft, segmenteringen og effekten af de konkrete
+fastholdelsesindsatser.
+
+# GitHub
+Prjojektets kodefiler er samlet i et GitHub-repository:
+https://github.com/EmilMadsen20/2semopgave 
+
+# Konklusion
+Dette projekt har undersøgt, hvordan Jyllands-Posten kan overgå fra en
+reaktiv til en proaktiv og datadrevet fastholdelsesstrategi.
+Hovedproblemet har været medievirksomhedens udfordring med at
+identificere kunder i risikozonen, før de aktivt vælger at opsige deres
+abonnement. Gennem analysen kan det konkluderes, at det er muligt at
+anvende machine learning og kundernes adfærdsdata fra de første 30 dage
+til præcist at forudsige churn på et tidligt tidspunkt.
+
+Der er udviklet og tunet to stærke prædiktive modeller, en XGBoost-model
+til at forudsige churn ved selve kampagnenudløbet, og en random
+forest-model til at forudsige early churn inden for en måned efter
+forlængelse. Analysen af modellernes feature importance viser entydigt,
+at variabler som antallet af aktive dage (Account_active_days), kundens
+avg_scroll_depth og den samlede læseaktivitet (aktivitet_total_30) er de
+mest afgørende faktorer for modellernes forudsigelsesevne. Dette
+bekræfter, at manglende engagement tidligt i forløbet er en primær
+driver for churn.
+
+I praksis kan disse modeller anvendes som et beslutningsstøtteværktøj i
+Jyllands-Postens daglige forretning. Ved at identificere risikokunderne
+tidligt kan avisen prioritere sin fastholdelsesindsats præcis der, hvor
+den har størst effekt for at opretholde brugerne. For yderligere at
+optimere modellernes effektivitet kan Jyllands-Posten med fordel justere
+og sænke modellens cut-off værdi (threshold) for eksempel til 0,35.
+Dette vil øge modellens sensitivitet og gøre det muligt proaktivt at
+fange en endnu større andel af de kunder, der reelt ender med at churne.
+
+For at omsætte kundernes adfærd til noget, Jyllands-Posten konkret kan bruge i praksis, er kunderne inddelt i fire adfærdsklynger gennem en klyngeanalyse. Det gør det muligt for avisen at tilpasse fastholdelsesindsatsen, så den passer til kundernes engagement i stedet for at sende den samme kommunikation til alle.
+Jyllands-Posten kan for eksempel sende målrettede tilbud og kampagner til kunder med meget lav aktivitet, såsom “Passive brugere” (Klynge 3), da denne gruppe har den højeste churn-risiko og ikke har opbygget en stabil læsevane. Segmentet med lavt engagement (Klynge 1) kan påvirkes gennem personlige artikelanbefalinger og nyhedsbreve med henblik på at øge aktiviteten og skabe en stærkere læsevane.
+“Engagerede brugere” (Klynge 4) kan i højere grad fastholdes gennem relevant og kontinuerligt indhold, der understøtter deres eksisterende brugsmønster. “Superbrugere” (Klynge 2) kan derimod udvikles yderligere gennem eksklusive tilbud, loyalitetsfordele og mersalg, da de allerede har et højt og stabilt engagement.
+For at få mest muligt ud af dette arbejde fremadrettet anbefales det at automatisere modellerne og koble dem direkte op på et Power BI-dashboard. På den måde bliver dataanalysen en fast og opdateret del af afdelingens hverdag, hvilket giver Jyllands-Posten et stærkt værktøj til at arbejde proaktivt med at reducere churn.
+
+\newpage
+\phantomsection
+\addcontentsline{toc}{section}{Bibliografi}
+
+# Bibliografi {.unnumbered .unlisted}
+
+::: {#refs}
+:::
