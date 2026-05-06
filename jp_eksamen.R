@@ -1,5 +1,5 @@
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse, tidymodels, lubridate, dplyr, stringr, readr, readxl, 
+pacman::p_load(tidyverse, tidymodels, lubridate, dplyr, stringr, readr, readxl,
                themis, table1, ggpubr, broom, ggfortify, GGally,
                PerformanceAnalytics, car, caret, skimr, discrim, glmnet,
                kknn, naivebayes, kernlab, xgboost, gridExtra, rpart, future,
@@ -46,7 +46,7 @@ cancellation <- cancellation %>%
   arrange(pseudo_id, desc(expiration_date)) %>%
   distinct(pseudo_id, .keep_all = TRUE)
 
-# Joining af datasæt 
+#Joining af datasæt
 join_datasæt <- subscription |>
   dplyr::left_join(cancellation, by = "pseudo_id")
 
@@ -72,7 +72,7 @@ join_datasæt <- join_datasæt |>
     days_after_campaign = as.numeric(expiration_date - last_campaign_day))
 
 #fjerne N/A, undtagen dem der opstår pga aktivt abonnement
-cols_allow_na <- c("type", "reason", "expiration_date", 
+cols_allow_na <- c("type", "reason", "expiration_date",
                    "days_after_campaign")
 
 join_datasæt <- join_datasæt %>%
@@ -85,11 +85,11 @@ join_datasæt <- join_datasæt %>%
   distinct(pseudo_id, .keep_all = TRUE) %>%
   filter(pseudo_id != "add49e9f3efbc829a809336238069353")
 
-#Tjek kolonner 
+#Tjek kolonner
 colSums(is.na(join_datasæt))
 
 # Tæller hvor mange gange hver utm_source (trafikkilde) optræder i datasættet
-join_datasæt |> 
+join_datasæt |>
   count(str_remove(str_extract(order_trackertag, "utm_source=[^&]+"), "utm_source="), sort = TRUE)
 
 
@@ -143,6 +143,17 @@ behavior_periode <- behavior %>%
   ) %>%
   filter(day_number >= 1 & day_number <= 30)
 
+
+
+aktivitet_total_fordeling <- behavior_periode %>%
+  group_by(pseudo_id) %>%
+  summarise(
+    aktivitet_total_30 = n(),
+    .groups = "drop"
+  )
+
+summary(aktivitet_total_fordeling$aktivitet_total_30)
+
 # Vi tælle aktivitet for hver pseudo-id i hver periode
 aktivitet_perioder <- behavior_periode %>%
   group_by(pseudo_id, periode) %>%
@@ -164,7 +175,7 @@ behavior_agg <- aktivitet_wide %>%
     aktivitet_total_30 = aktivitet_start_10 + aktivitet_midt_10 + aktivitet_slut_10
   )
 
-# Scroll Depth: Herefter kan vi lave variablerne for gennemsnitlig scroll depth, 
+# Scroll Depth: Herefter kan vi lave variablerne for gennemsnitlig scroll depth,
 scroll_agg <- behavior %>%
   mutate(
     scroll_depth = as.numeric(scroll_depth)
@@ -281,7 +292,6 @@ data_model2 <- data_model1 %>%
 # Tidymodels workflow -----------------------------------------------------
 model1_df <- data_model1 |> 
   select(
-    -pseudo_id,
     -subscription_cancel_date,
     -order_date,
     -birthdate,
@@ -320,6 +330,7 @@ churn_folds <- vfold_cv(churn_train, v = 5, strata = churn_ved_kampagne_udløb)
 # Laver en recipe
 jp_recipe_1 <- 
   recipe(formula = churn_ved_kampagne_udløb ~ ., data = churn_train) |> 
+  update_role(pseudo_id, new_role = "ID") |>
   step_normalize(all_numeric_predictors()) |> 
   step_novel(all_nominal_predictors()) |> 
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |> 
@@ -404,29 +415,35 @@ jp_metrics <- metric_set(accuracy, roc_auc, f_meas, sens, yardstick::spec)
 plan(multisession)
 
 # Kør grid search på alle modeller i workflow_set
-grid_results_1 <- jp_workflow_set %>%
-  workflow_map(
-    seed = 7,                      # Seed, som gør resultater reproducerbare
-    resamples = churn_folds,       # cross-validation folds
-    grid = 7,                      # antal parameter-kombinationer
-    control = grid_ctrl,           # styring af tuning (gem predictions osv.)
-    metrics = jp_metrics           # hvilke metrics der beregnes
-  )
-
-# RDS save
-# ----------------------------
-# saveRDS(grid_results_1, "grid_results_1.rds")
-# grid_results_1 <- readRDS("grid_results_1.rds")
+if (file.exists("grid_results_1.rds")) {
+  
+  grid_results_1 <- readRDS("grid_results_1.rds")
+  
+} else {
+  
+  grid_results_1 <- jp_workflow_set %>%
+    workflow_map(
+      seed = 7,
+      resamples = churn_folds,
+      grid = 7,
+      metrics = jp_metrics,
+      control = grid_ctrl
+    )
+  
+  saveRDS(grid_results_1, "grid_results_1.rds")
+}
 
 # # Slå parallel computing fra igen
 plan(sequential)
 
 # Rangér modellerne og se hvilke der performer bedst
-grid_results_1 %>% 
+model1_rank <- grid_results_1 %>% 
   rank_results(select_best = TRUE) %>% 
   select(wflow_id, .metric, mean) %>% 
   pivot_wider(names_from = .metric, values_from = mean) %>% 
   arrange(-f_meas)
+
+model1_rank
 
 # Plot performance for bedste modeller
 autoplot(grid_results_1, select_best = TRUE)
@@ -450,31 +467,48 @@ churn_last_fit_1 <- final_wf_1 |>
 # Se model performance på testdata
 collect_metrics(churn_last_fit_1)
 
-# Hent predictioner fra modellen
-test_preds_1 <- churn_last_fit_1 |> 
-  collect_predictions()
-
-# Lav confusion matrix (hvordan modellen klassificerer)
-churn_last_fit_1 |>
-  collect_predictions() |>
-  conf_mat(estimate = .pred_class, truth = churn_ved_kampagne_udløb)
-
-test_preds_1 <- test_preds_1 |> 
+# Hent predictions og tilføj pseudo_id, fejltype og risikogruppe
+test_preds_1_risiko <- churn_last_fit_1 |> 
+  collect_predictions() |> 
+  bind_cols(churn_test |> select(pseudo_id)) |> 
   mutate(
     fejltype = case_when(
       churn_ved_kampagne_udløb == "Yes" & .pred_class == "Yes" ~ "True Positive",
       churn_ved_kampagne_udløb == "No"  & .pred_class == "No"  ~ "True Negative",
       churn_ved_kampagne_udløb == "No"  & .pred_class == "Yes" ~ "False Positive",
       churn_ved_kampagne_udløb == "Yes" & .pred_class == "No"  ~ "False Negative"
+    ),
+    risiko_gruppe = case_when(
+      .pred_Yes >= 0.70 ~ "Høj risiko",
+      .pred_Yes >= 0.30 ~ "Middel risiko",
+      TRUE ~ "Lav risiko"
     )
   )
 
-test_preds_1 |> 
+# Confusion matrix
+churn_last_fit_1 |>
+  collect_predictions() |>
+  conf_mat(
+    estimate = .pred_class, 
+    truth = churn_ved_kampagne_udløb
+  )
+
+# Antal pr. fejltype
+test_preds_1_risiko |> 
   count(fejltype)
 
-final_model_1 <- fit(final_wf_1, model1_df)
+test_preds_1_risiko %>%
+  count(risiko_gruppe) %>%
+  mutate(procent = round(n / sum(n) * 100, 1)) %>%
+  arrange(desc(n))
 
+# Gemems til power bi
+# write.csv(test_preds_1_risiko, "test_preds_1_risiko.csv", row.names = FALSE)
+
+# Final model
+final_model_1 <- fit(final_wf_1, model1_df)
 final_model_1
+
 
 # FEATURE IMPORTANCE (XGBOOST)
 # Hent fitted xgboost model
@@ -485,7 +519,7 @@ importance_tbl_1 <- xgb.importance(model = xgb_fit_1)
 
 importance_tbl_1
 
-# (valgfrit) plot
+# plot
 xgb.plot.importance(importance_tbl_1, top_n = 15)
 
 
@@ -598,13 +632,10 @@ cluster_profile <- cluster_result %>%
 
 # view(cluster_result)
 
-
-
 # Churn 1 måned efter forlængelse -----------------------------------------
 # Tidymodels workflow til early churn
 model2_df <- data_model2 %>%
   select(
-    -pseudo_id,
     -subscription_cancel_date,
     -order_date,
     -birthdate,
@@ -644,6 +675,7 @@ churn2_folds <- vfold_cv(churn2_train, v = 5, strata = churn_1måned_efter_forl�
 # RECIPE
 jp_recipe2 <- 
   recipe(churn_1måned_efter_forlængelse ~ ., data = churn2_train) |> 
+  update_role(pseudo_id, new_role = "ID") |>
   step_normalize(all_numeric_predictors()) |> 
   step_novel(all_nominal_predictors()) |> 
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |> 
@@ -652,6 +684,7 @@ jp_recipe2 <-
 # UPSAMPLING RECIPE
 jp_recipe2_upsample <- 
   recipe(churn_1måned_efter_forlængelse ~ ., data = churn2_train) |> 
+  update_role(pseudo_id, new_role = "ID") |>
   step_normalize(all_numeric_predictors()) |> 
   step_novel(all_nominal_predictors()) |> 
   step_dummy(all_nominal_predictors(), one_hot = TRUE) |> 
@@ -737,21 +770,26 @@ grid_ctrl <- control_grid(
 )
 
 # Metrics
-metrics <- metric_set(accuracy, roc_auc, f_meas, sens, yardstick::spec)
+jp_metrics2 <- metric_set(accuracy, roc_auc, f_meas, sens, yardstick::spec)
 
 # Kør grid search på alle modeller i workflow_set
-grid_results2 <- workflow_set2 %>%
-  workflow_map(
-    seed = 7,
-    resamples = churn2_folds,
-    grid = 7,
-    control = grid_ctrl,
-    metrics = metrics
-  )
-
-# saveRDS(grid_results2, "grid_results2.rds")
-# grid_results <- readRDS("grid_results2.rds")
-
+if (file.exists("grid_results2.rds")) {
+  
+  grid_results2 <- readRDS("grid_results2.rds")
+  
+} else {
+  
+  grid_results2 <- workflow_set2 %>%
+    workflow_map(
+      seed = 7,
+      resamples = churn2_folds,
+      grid = 7,
+      metrics = jp_metrics2,
+      control = grid_ctrl
+    )
+  
+  saveRDS(grid_results2, "grid_results2.rds")
+}
 
 # Plot performance for bedste modeller
 autoplot(grid_results2, select_best = TRUE)
@@ -769,7 +807,6 @@ model2_rank <- grid_results2 %>%
 
 model2_rank
 
-
 # Udvælg bedste hyperparametre for Random Forest baseline
 best_results2 <- grid_results2 |> 
   extract_workflow_set_result("baseline_rand_forest") |> 
@@ -786,36 +823,50 @@ final_wf2
 
 # Test den endelige model på testdata
 churn2_last_fit <- final_wf2 |> 
-  last_fit(churn2_split, metrics = metrics)
+  last_fit(churn2_split, metrics = jp_metrics2)
 
 collect_metrics(churn2_last_fit)
 
-# Confusion matrix
-churn2_last_fit |>
-  collect_predictions() |>
-  conf_mat(
-    truth = churn_1måned_efter_forlængelse,
-    estimate = .pred_class
-  )
-
-# Gem predictions
-test_preds_2 <- churn2_last_fit |> 
+# Hent predictions og tilføj pseudo_id, fejltype og risikogruppe
+test_preds_2_risiko <- churn2_last_fit |> 
   collect_predictions() |> 
+  bind_cols(churn2_test |> select(pseudo_id)) |> 
   mutate(
     fejltype = case_when(
       churn_1måned_efter_forlængelse == "Yes" & .pred_class == "Yes" ~ "True Positive",
       churn_1måned_efter_forlængelse == "No"  & .pred_class == "No"  ~ "True Negative",
       churn_1måned_efter_forlængelse == "No"  & .pred_class == "Yes" ~ "False Positive",
       churn_1måned_efter_forlængelse == "Yes" & .pred_class == "No"  ~ "False Negative"
+    ),
+    risiko_gruppe = case_when(
+      .pred_Yes >= 0.70 ~ "Høj early churn-risiko",
+      .pred_Yes >= 0.30 ~ "Middel early churn-risiko",
+      TRUE ~ "Lav early churn-risiko"
     )
   )
 
-test_preds_2 |> 
+# Confusion matrix
+confusion_matrix_2 <- churn2_last_fit |>
+  collect_predictions() |>
+  conf_mat(
+    truth = churn_1måned_efter_forlængelse,
+    estimate = .pred_class
+  )
+
+# Antal pr. fejltype
+test_preds_2_risiko |> 
   count(fejltype)
+
+test_preds_2_risiko %>%
+  count(risiko_gruppe) %>%
+  mutate(procent = round(n / sum(n) * 100, 1)) %>%
+  arrange(desc(n))
+
+# Gemmes til power bi
+# write.csv(test_preds_2_risiko, "test_preds_2_risiko.csv", row.names = FALSE)
 
 # Fit endelig model på hele model2_df
 final_model2 <- fit(final_wf2, model2_df)
-
 final_model2
 
 # Feature importance for endelig Random Forest model
@@ -946,14 +997,5 @@ cluster_result2 %>%
 
 
 
-
-# # Eksporter til cvs
-# write.csv(model_df, "model_df.csv")
-# 
-# getwd()
-# 
-# view(cluster_result2)
-# 
-# 
 # #Laver csv fil til colab
 # write.csv(model_df, "model_df.csv")
